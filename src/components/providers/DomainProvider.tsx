@@ -37,22 +37,18 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
       setDomains(data.domains);
 
-      // If no active domain is set, set the first one
-      if (!activeDomain && data.domains.length > 0) {
-        setActiveDomainState(data.domains[0]);
-      }
-
-      // If active domain was deleted, switch to first available
-      if (activeDomain && !data.domains.find((d: Domain) => d.id === activeDomain.id)) {
-        setActiveDomainState(data.domains[0] || null);
-      }
+      setActiveDomainState((prev) => {
+        if (!prev) return data.domains[0] || null;
+        const stillExists = data.domains.some((d: Domain) => d.id === prev.id);
+        return stillExists ? prev : (data.domains[0] || null);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch domains');
       console.error('Error fetching domains:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [activeDomain]);
+  }, []);
 
   // Add a new domain
   const addDomain = useCallback(async (name: string, apiKey: string): Promise<Domain> => {
@@ -113,7 +109,7 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   // Initial load
   useEffect(() => {
     refreshDomains();
-  }, []);
+  }, [refreshDomains]);
 
   const value: DomainContextType = {
     domains,

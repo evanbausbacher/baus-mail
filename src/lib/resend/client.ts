@@ -111,7 +111,7 @@ export class ResendClient {
       // Try to list emails with limit 1 to validate API key
       await this.listReceivedEmails({ limit: 1 });
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -197,7 +197,16 @@ function mapResendReceivedEmailToEmail(
     html: resendEmail.html || null,
     text: resendEmail.text || null,
     headers: null,
-    attachments: resendEmail.attachments || null,
+    attachments: resendEmail.attachments
+      ? resendEmail.attachments.map((a) => ({
+          id: a.id,
+          filename: a.filename,
+          contentType: a.content_type,
+          size: a.size,
+          contentId: a.content_id ?? null,
+          contentDisposition: a.content_disposition ?? null,
+        }))
+      : null,
     inReplyTo: null, // TODO: Extract from headers if available
     references: null, // TODO: Extract from headers if available
     threadId: resendEmail.message_id || null, // Use message_id as initial thread ID
