@@ -7,6 +7,7 @@ import { useEmails } from '@/components/providers/EmailProvider';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { formatDate } from '@/lib/utils/date-helpers';
 import { formatEmailAddress, getEmailPreview } from '@/lib/utils/email-helpers';
+import { useEmailActions } from '@/hooks/useEmailActions';
 
 interface EmailListItemProps {
   email: Email;
@@ -14,6 +15,7 @@ interface EmailListItemProps {
 
 export function EmailListItem({ email }: EmailListItemProps) {
   const { selectedEmails, toggleEmailSelection, selectedEmail, setSelectedEmail } = useEmails();
+  const { toggleStar, isActing } = useEmailActions();
 
   const isSelected = selectedEmails.has(email.id);
   const isActive = selectedEmail?.id === email.id;
@@ -54,7 +56,18 @@ export function EmailListItem({ email }: EmailListItemProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              {email.isStarred && <Star className="w-4 h-4 text-gray-900" fill="currentColor" />}
+              <button
+                type="button"
+                className="p-1 hover:bg-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleStar(email);
+                }}
+                disabled={isActing}
+                aria-label={email.isStarred ? 'Unstar' : 'Star'}
+              >
+                <Star className="w-4 h-4 text-gray-900" fill={email.isStarred ? 'currentColor' : 'none'} />
+              </button>
               <div className="text-xs text-gray-500 whitespace-nowrap">{formatDate(email.createdAt)}</div>
             </div>
           </div>
@@ -65,4 +78,3 @@ export function EmailListItem({ email }: EmailListItemProps) {
     </div>
   );
 }
-

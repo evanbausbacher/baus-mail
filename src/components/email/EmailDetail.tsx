@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'isomorphic-dompurify';
 import type { Email } from '@/types/email';
 import { formatFullDate } from '@/lib/utils/date-helpers';
@@ -10,10 +10,19 @@ import { EmailThread } from '@/components/email/EmailThread';
 import { Button } from '@/components/ui/Button';
 import { Reply, Forward } from 'lucide-react';
 import { useEmails } from '@/components/providers/EmailProvider';
+import { EmailActions } from '@/components/email/EmailActions';
+import { useEmailActions } from '@/hooks/useEmailActions';
 
 export function EmailDetail({ email }: { email: Email }) {
   const [mode, setMode] = useState<'html' | 'text'>('html');
   const { openComposeReply, openComposeForward } = useEmails();
+  const { act } = useEmailActions();
+
+  useEffect(() => {
+    if (!email.isRead) {
+      act([email.id], 'markRead').catch(() => undefined);
+    }
+  }, [email.id, email.isRead, act]);
 
   const sanitizedHtml = useMemo(() => {
     const html = email.html ?? null;
@@ -38,6 +47,7 @@ export function EmailDetail({ email }: { email: Email }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <EmailActions email={email} />
           <Button variant="secondary" onClick={() => openComposeReply(email)}>
             <Reply className="w-4 h-4 mr-2" />
             Reply
