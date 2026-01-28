@@ -15,8 +15,11 @@ interface EmailContextType {
   currentView: EmailView;
   selectedEmail: Email | null;
   compose: { isOpen: boolean; draft: ComposeDraft };
+  searchQuery: string;
   setCurrentView: (view: EmailView) => void;
   setSelectedEmail: (email: Email | null) => void;
+  setSearchQuery: (query: string) => void;
+  runSearch: (domainId: string, view: EmailView, query: string) => Promise<void>;
   openComposeNew: () => void;
   openComposeReply: (email: Email) => void;
   openComposeForward: (email: Email) => void;
@@ -42,6 +45,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     isOpen: false,
     draft: { mode: 'new' },
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   const hydrateEmail = useCallback((raw: unknown): Email => {
     const base = raw as unknown as Omit<Email, 'createdAt' | 'syncedAt'> & {
@@ -122,11 +126,68 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     }
   }, [hydrateEmail]);
 
+  const runSearch = useCallback(
+    async (domainId: string, view: EmailView, query: string) => {
+      const q = query.trim();
+      if (!q) {
+        await loadEmails(domainId, view);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      setCurrentDomainId(domainId);
+
+      try {
+        const res = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domainId,
+            query: q,
+            filters: {
+              type: view === 'sent' ? 'sent' : view === 'inbox' || view === 'spam' ? 'received' : undefined,
+            },
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.details || data?.error || 'Failed to search');
+        }
+
+        const data = await res.json();
+        let filtered = (data.emails || []).map(hydrateEmail) as Email[];
+
+        if (view === 'starred') filtered = filtered.filter((e) => e.isStarred && !e.isDeleted);
+        if (view === 'spam') filtered = filtered.filter((e) => e.isSpam && !e.isDeleted);
+        if (view === 'trash') filtered = filtered.filter((e) => e.isDeleted);
+        if (view === 'inbox') filtered = filtered.filter((e) => e.type === 'received' && !e.isDeleted && !e.isSpam);
+        if (view === 'sent') filtered = filtered.filter((e) => e.type === 'sent' && !e.isDeleted);
+
+        filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        setEmails(filtered);
+        setSelectedEmail((prev) => (prev ? filtered.find((e) => e.id === prev.id) ?? null : prev));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to search');
+        setEmails([]);
+        setSelectedEmail(null);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [hydrateEmail, loadEmails]
+  );
+
   const refreshEmails = useCallback(async () => {
     if (currentDomainId) {
-      await loadEmails(currentDomainId, currentView);
+      if (searchQuery.trim()) {
+        await runSearch(currentDomainId, currentView, searchQuery);
+      } else {
+        await loadEmails(currentDomainId, currentView);
+      }
     }
-  }, [currentDomainId, currentView, loadEmails]);
+  }, [currentDomainId, currentView, loadEmails, runSearch, searchQuery]);
 
   const toggleEmailSelection = useCallback((emailId: string) => {
     setSelectedEmails(prev => {
@@ -152,6 +213,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     // Clear selection when view changes
     clearSelection();
     setSelectedEmail(null);
+    setSearchQuery('');
   }, [currentView, clearSelection, setSelectedEmail]);
 
   const openComposeNew = useCallback(() => {
@@ -178,8 +240,11 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     currentView,
     selectedEmail,
     compose,
+    searchQuery,
     setCurrentView,
     setSelectedEmail,
+    setSearchQuery,
+    runSearch,
     openComposeNew,
     openComposeReply,
     openComposeForward,

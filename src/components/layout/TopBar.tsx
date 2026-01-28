@@ -14,7 +14,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onSync, onCompose }: TopBarProps) {
-  const { selectedEmails, clearSelection, currentView } = useEmails();
+  const { selectedEmails, clearSelection, currentView, setSearchQuery, runSearch } = useEmails();
   const { activeDomain } = useDomains();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -71,9 +71,11 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
           <div className="flex-1">
             <SearchBar
               placeholder="Search emails..."
-              onSearch={(query) => {
-                // TODO: Implement search in Phase 8
-                console.log('Search:', query);
+              onSearch={async (query) => {
+                setSearchQuery(query);
+                if (activeDomain) {
+                  await runSearch(activeDomain.id, currentView, query);
+                }
               }}
             />
           </div>
