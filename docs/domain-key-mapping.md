@@ -1,0 +1,2 @@
+trainingdojo.app re_V8nMQxAX_M1y8okDMweYRibF8rjbYXghQ
+texascyclingstats.com re_gCcdqnbB_GKXYRiKjtJdH1FKbetUp35u9
