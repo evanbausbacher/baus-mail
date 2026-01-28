@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       try {
         await createEmail(email);
         newEmailsCount++;
-      } catch (error) {
+      } catch {
         // Email might already exist (duplicate), skip it
         console.log(`Skipping duplicate email: ${email.id}`);
       }

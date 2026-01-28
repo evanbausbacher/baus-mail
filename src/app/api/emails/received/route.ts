@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmailsByDomain } from '@/lib/db/queries';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/emails/received - Get received emails from cache
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +10,7 @@ export async function GET(request: NextRequest) {
     const domainId = searchParams.get('domainId');
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
+    const includeDeleted = searchParams.get('includeDeleted') === 'true' || searchParams.get('includeDeleted') === '1';
 
     if (!domainId) {
       return NextResponse.json({ error: 'Domain ID is required' }, { status: 400 });
@@ -16,7 +19,7 @@ export async function GET(request: NextRequest) {
     const emails = await getEmailsByDomain(domainId, 'received', {
       limit,
       offset,
-      includeDeleted: false,
+      includeDeleted,
     });
 
     return NextResponse.json({ emails });

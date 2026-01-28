@@ -4,6 +4,9 @@ import { domains, emails, syncState } from './schema';
 import type { Domain, CreateDomainInput, UpdateDomainInput } from '@/types/domain';
 import type { Email, EmailType } from '@/types/email';
 
+type DomainRow = typeof domains.$inferSelect;
+type EmailRow = typeof emails.$inferSelect;
+
 // ============================================
 // Domain Queries
 // ============================================
@@ -38,7 +41,7 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
     name: newDomain.name,
     apiKey: newDomain.apiKey,
     createdAt: newDomain.createdAt,
-    isActive: 1,
+    isActive: true,
     lastSyncedAt: null,
   });
 
@@ -46,11 +49,11 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
 }
 
 export async function updateDomain(id: string, input: UpdateDomainInput): Promise<Domain | null> {
-  const updates: any = {};
+  const updates: Record<string, unknown> = {};
 
   if (input.name !== undefined) updates.name = input.name;
   if (input.apiKey !== undefined) updates.apiKey = input.apiKey;
-  if (input.isActive !== undefined) updates.isActive = input.isActive ? 1 : 0;
+  if (input.isActive !== undefined) updates.isActive = input.isActive;
 
   if (Object.keys(updates).length === 0) {
     return getDomainById(id);
@@ -61,7 +64,7 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
 }
 
 export async function deleteDomain(id: string): Promise<boolean> {
-  const result = await db.delete(domains).where(eq(domains.id, id));
+  await db.delete(domains).where(eq(domains.id, id));
   return true;
 }
 
@@ -85,14 +88,14 @@ export async function getEmailsByDomain(
   const limit = options?.limit || 100;
   const offset = options?.offset || 0;
 
-  let query = db
+  const query = db
     .select()
     .from(emails)
     .where(
       and(
         eq(emails.domainId, domainId),
         type ? eq(emails.type, type) : undefined,
-        !options?.includeDeleted ? eq(emails.isDeleted, 0) : undefined
+        !options?.includeDeleted ? eq(emails.isDeleted, false) : undefined
       )
     )
     .orderBy(desc(emails.createdAt))
@@ -129,10 +132,10 @@ export async function createEmail(email: Omit<Email, 'syncedAt'>): Promise<Email
     threadId: email.threadId || null,
     createdAt: email.createdAt,
     syncedAt: new Date(),
-    isRead: email.isRead ? 1 : 0,
-    isStarred: email.isStarred ? 1 : 0,
-    isSpam: email.isSpam ? 1 : 0,
-    isDeleted: email.isDeleted ? 1 : 0,
+    isRead: email.isRead,
+    isStarred: email.isStarred,
+    isSpam: email.isSpam,
+    isDeleted: email.isDeleted,
     labels: email.labels ? JSON.stringify(email.labels) : null,
   });
 
@@ -148,12 +151,12 @@ export async function updateEmailFlags(
     isDeleted?: boolean;
   }
 ): Promise<void> {
-  const updates: any = {};
+  const updates: Record<string, unknown> = {};
 
-  if (flags.isRead !== undefined) updates.isRead = flags.isRead ? 1 : 0;
-  if (flags.isStarred !== undefined) updates.isStarred = flags.isStarred ? 1 : 0;
-  if (flags.isSpam !== undefined) updates.isSpam = flags.isSpam ? 1 : 0;
-  if (flags.isDeleted !== undefined) updates.isDeleted = flags.isDeleted ? 1 : 0;
+  if (flags.isRead !== undefined) updates.isRead = flags.isRead;
+  if (flags.isStarred !== undefined) updates.isStarred = flags.isStarred;
+  if (flags.isSpam !== undefined) updates.isSpam = flags.isSpam;
+  if (flags.isDeleted !== undefined) updates.isDeleted = flags.isDeleted;
 
   for (const emailId of emailIds) {
     await db.update(emails).set(updates).where(eq(emails.id, emailId));
@@ -212,18 +215,30 @@ export async function updateSyncState(
 // Helper Functions
 // ============================================
 
-function mapDomainFromDb(row: any): Domain {
+function mapDomainFromDb(row: DomainRow): Domain {
+  const toDate = (value: unknown) => {
+    if (value instanceof Date) return value;
+    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    return new Date(String(value));
+  };
+
   return {
     id: row.id,
     name: row.name,
     apiKey: row.apiKey,
-    createdAt: new Date(row.createdAt),
+    createdAt: toDate(row.createdAt),
     isActive: Boolean(row.isActive),
-    lastSyncedAt: row.lastSyncedAt ? new Date(row.lastSyncedAt) : null,
+    lastSyncedAt: row.lastSyncedAt ? toDate(row.lastSyncedAt) : null,
   };
 }
 
-function mapEmailFromDb(row: any): Email {
+function mapEmailFromDb(row: EmailRow): Email {
+  const toDate = (value: unknown) => {
+    if (value instanceof Date) return value;
+    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    return new Date(String(value));
+  };
+
   return {
     id: row.id,
     domainId: row.domainId,
@@ -242,8 +257,8 @@ function mapEmailFromDb(row: any): Email {
     inReplyTo: row.inReplyTo,
     references: row.references,
     threadId: row.threadId,
-    createdAt: new Date(row.createdAt),
-    syncedAt: new Date(row.syncedAt),
+    createdAt: toDate(row.createdAt),
+    syncedAt: toDate(row.syncedAt),
     isRead: Boolean(row.isRead),
     isStarred: Boolean(row.isStarred),
     isSpam: Boolean(row.isSpam),
