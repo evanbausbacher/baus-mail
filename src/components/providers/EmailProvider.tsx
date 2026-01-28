@@ -109,9 +109,14 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
       filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       setEmails(filtered);
+      setSelectedEmail((prev) => {
+        if (!prev) return prev;
+        return filtered.find((e) => e.id === prev.id) ?? null;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load emails');
       setEmails([]);
+      setSelectedEmail(null);
     } finally {
       setIsLoading(false);
     }

@@ -1,11 +1,12 @@
 'use client';
 
-import { RefreshCw, Trash2, Archive, AlertOctagon, Star } from 'lucide-react';
+import { RefreshCw, Trash2, AlertOctagon, Star, MailOpen, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { useDomains } from '@/hooks/useDomains';
 import { useState } from 'react';
+import { useEmailActions } from '@/hooks/useEmailActions';
 
 interface TopBarProps {
   onSync: () => Promise<void>;
@@ -17,6 +18,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
   const { activeDomain } = useDomains();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const { act, isActing } = useEmailActions();
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -32,12 +34,9 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
     }
   };
 
-  const handleBulkAction = async (action: 'delete' | 'star' | 'spam' | 'archive') => {
+  const handleBulkAction = async (action: 'delete' | 'star' | 'unstar' | 'spam' | 'notSpam' | 'markRead' | 'markUnread') => {
     if (selectedEmails.size === 0) return;
-
-    // TODO: Implement bulk actions in Phase 7
-    console.log(`Bulk ${action} for`, Array.from(selectedEmails));
-    clearSelection();
+    await act(Array.from(selectedEmails), action, { clearSelection: true });
   };
 
   const viewTitle = currentView.charAt(0).toUpperCase() + currentView.slice(1);
@@ -86,31 +85,50 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
               </span>
               <Button
                 variant="ghost"
+                onClick={() => handleBulkAction('markRead')}
+                disabled={isActing}
+              >
+                <Mail className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => handleBulkAction('markUnread')}
+                disabled={isActing}
+              >
+                <MailOpen className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => handleBulkAction('delete')}
+                disabled={isActing}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => handleBulkAction('star')}
+                disabled={isActing}
               >
                 <Star className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
+                onClick={() => handleBulkAction('unstar')}
+                disabled={isActing}
+              >
+                <Star className="w-4 h-4 text-gray-400" />
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => handleBulkAction('spam')}
+                disabled={isActing}
               >
                 <AlertOctagon className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => handleBulkAction('archive')}
-              >
-                <Archive className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
                 onClick={clearSelection}
+                disabled={isActing}
               >
                 Clear
               </Button>
