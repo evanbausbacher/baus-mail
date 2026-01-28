@@ -6,6 +6,7 @@ import type { Email, EmailType } from '@/types/email';
 
 type DomainRow = typeof domains.$inferSelect;
 type EmailRow = typeof emails.$inferSelect;
+type EmailInsertRow = typeof emails.$inferInsert;
 
 // ============================================
 // Domain Queries
@@ -140,6 +141,63 @@ export async function createEmail(email: Omit<Email, 'syncedAt'>): Promise<Email
   });
 
   return { ...email, syncedAt: new Date() };
+}
+
+export async function upsertEmailRemote(email: Omit<Email, 'syncedAt'>): Promise<void> {
+  const now = new Date();
+
+  const insertValues: EmailInsertRow = {
+    id: email.id,
+    domainId: email.domainId,
+    type: email.type,
+    messageId: email.messageId || null,
+    from: email.from,
+    to: JSON.stringify(email.to),
+    cc: email.cc ? JSON.stringify(email.cc) : null,
+    bcc: email.bcc ? JSON.stringify(email.bcc) : null,
+    replyTo: email.replyTo ? JSON.stringify(email.replyTo) : null,
+    subject: email.subject,
+    html: email.html || null,
+    text: email.text || null,
+    headers: email.headers ? JSON.stringify(email.headers) : null,
+    attachments: email.attachments ? JSON.stringify(email.attachments) : null,
+    inReplyTo: email.inReplyTo || null,
+    references: email.references || null,
+    threadId: email.threadId || null,
+    createdAt: email.createdAt,
+    syncedAt: now,
+    isRead: email.isRead,
+    isStarred: email.isStarred,
+    isSpam: email.isSpam,
+    isDeleted: email.isDeleted,
+    labels: email.labels ? JSON.stringify(email.labels) : null,
+  };
+
+  const updateValues: Partial<EmailInsertRow> = {
+    messageId: email.messageId || null,
+    from: email.from,
+    to: JSON.stringify(email.to),
+    cc: email.cc ? JSON.stringify(email.cc) : null,
+    bcc: email.bcc ? JSON.stringify(email.bcc) : null,
+    replyTo: email.replyTo ? JSON.stringify(email.replyTo) : null,
+    subject: email.subject,
+    html: email.html || null,
+    text: email.text || null,
+    headers: email.headers ? JSON.stringify(email.headers) : null,
+    attachments: email.attachments ? JSON.stringify(email.attachments) : null,
+    inReplyTo: email.inReplyTo || null,
+    references: email.references || null,
+    threadId: email.threadId || null,
+    syncedAt: now,
+  };
+
+  await db
+    .insert(emails)
+    .values(insertValues)
+    .onConflictDoUpdate({
+      target: emails.id,
+      set: updateValues,
+    });
 }
 
 export async function updateEmailFlags(

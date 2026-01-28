@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDomainById, updateDomainLastSynced, createEmail, getSyncState, updateSyncState } from '@/lib/db/queries';
+import { getDomainById, updateDomainLastSynced, upsertEmailRemote, getSyncState, updateSyncState } from '@/lib/db/queries';
 import { syncReceivedEmails } from '@/lib/resend/client';
 
 // POST /api/emails/received/sync - Sync received emails from Resend
@@ -29,16 +29,9 @@ export async function POST(request: NextRequest) {
       lastCursor
     );
 
-    // Store emails in database
-    let newEmailsCount = 0;
+    // Store (or update) emails in database. This also backfills missing body content on duplicates.
     for (const email of emails) {
-      try {
-        await createEmail(email);
-        newEmailsCount++;
-      } catch {
-        // Email might already exist (duplicate), skip it
-        console.log(`Skipping duplicate email: ${email.id}`);
-      }
+      await upsertEmailRemote(email);
     }
 
     // Update sync state
@@ -49,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      synced: newEmailsCount,
+      synced: emails.length,
       total: emails.length,
       hasMore,
     });
