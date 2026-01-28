@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, or, desc, sql } from 'drizzle-orm';
 import { db } from './index';
 import { domains, emails, syncState } from './schema';
 import type { Domain, CreateDomainInput, UpdateDomainInput } from '@/types/domain';
@@ -110,6 +110,71 @@ export async function getEmailsByDomain(
 export async function getEmailById(id: string): Promise<Email | null> {
   const result = await db.select().from(emails).where(eq(emails.id, id)).limit(1);
   return result.length > 0 ? mapEmailFromDb(result[0]) : null;
+}
+
+export async function searchEmails(params: {
+  domainId: string;
+  query: string;
+  limit?: number;
+  offset?: number;
+  filters?: {
+    type?: EmailType;
+    isRead?: boolean;
+    isStarred?: boolean;
+    isSpam?: boolean;
+    isDeleted?: boolean;
+    from?: string;
+    to?: string;
+    subject?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
+}): Promise<Email[]> {
+  const limit = params.limit ?? 100;
+  const offset = params.offset ?? 0;
+
+  const q = params.query.trim().toLowerCase();
+  const likeQ = `%${q}%`;
+
+  const textMatch = or(
+    sql`lower(${emails.subject}) like ${likeQ}`,
+    sql`lower(${emails.from}) like ${likeQ}`,
+    sql`lower(${emails.to}) like ${likeQ}`,
+    sql`lower(${emails.text}) like ${likeQ}`,
+    sql`lower(${emails.html}) like ${likeQ}`
+  );
+
+  const f = params.filters;
+  const fromLike = f?.from ? `%${f.from.toLowerCase()}%` : null;
+  const toLike = f?.to ? `%${f.to.toLowerCase()}%` : null;
+  const subjectLike = f?.subject ? `%${f.subject.toLowerCase()}%` : null;
+  const dateFrom = f?.dateFrom ? new Date(f.dateFrom) : null;
+  const dateTo = f?.dateTo ? new Date(f.dateTo) : null;
+
+  const where = and(
+    eq(emails.domainId, params.domainId),
+    f?.type ? eq(emails.type, f.type) : undefined,
+    f?.isRead !== undefined ? eq(emails.isRead, f.isRead) : undefined,
+    f?.isStarred !== undefined ? eq(emails.isStarred, f.isStarred) : undefined,
+    f?.isSpam !== undefined ? eq(emails.isSpam, f.isSpam) : undefined,
+    f?.isDeleted !== undefined ? eq(emails.isDeleted, f.isDeleted) : undefined,
+    fromLike ? sql`lower(${emails.from}) like ${fromLike}` : undefined,
+    toLike ? sql`lower(${emails.to}) like ${toLike}` : undefined,
+    subjectLike ? sql`lower(${emails.subject}) like ${subjectLike}` : undefined,
+    dateFrom ? sql`${emails.createdAt} >= ${dateFrom}` : undefined,
+    dateTo ? sql`${emails.createdAt} <= ${dateTo}` : undefined,
+    textMatch
+  );
+
+  const result = await db
+    .select()
+    .from(emails)
+    .where(where)
+    .orderBy(desc(emails.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return result.map(mapEmailFromDb);
 }
 
 export async function createEmail(email: Omit<Email, 'syncedAt'>): Promise<Email> {
