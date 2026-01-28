@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Email } from '@/types/email';
+import type { ComposeDraft } from '@/lib/compose/draft';
+import { buildDraftFromEmail } from '@/lib/compose/draft';
 
 export type EmailView = 'inbox' | 'sent' | 'starred' | 'spam' | 'trash';
 
@@ -12,8 +14,13 @@ interface EmailContextType {
   error: string | null;
   currentView: EmailView;
   selectedEmail: Email | null;
+  compose: { isOpen: boolean; draft: ComposeDraft };
   setCurrentView: (view: EmailView) => void;
   setSelectedEmail: (email: Email | null) => void;
+  openComposeNew: () => void;
+  openComposeReply: (email: Email) => void;
+  openComposeForward: (email: Email) => void;
+  closeCompose: () => void;
   loadEmails: (domainId: string, view: EmailView) => Promise<void>;
   toggleEmailSelection: (emailId: string) => void;
   selectAllEmails: () => void;
@@ -31,6 +38,10 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
   const [currentView, setCurrentView] = useState<EmailView>('inbox');
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [currentDomainId, setCurrentDomainId] = useState<string | null>(null);
+  const [compose, setCompose] = useState<{ isOpen: boolean; draft: ComposeDraft }>({
+    isOpen: false,
+    draft: { mode: 'new' },
+  });
 
   const hydrateEmail = useCallback((raw: unknown): Email => {
     const base = raw as unknown as Omit<Email, 'createdAt' | 'syncedAt'> & {
@@ -138,6 +149,22 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     setSelectedEmail(null);
   }, [currentView, clearSelection, setSelectedEmail]);
 
+  const openComposeNew = useCallback(() => {
+    setCompose({ isOpen: true, draft: { mode: 'new' } });
+  }, []);
+
+  const openComposeReply = useCallback((email: Email) => {
+    setCompose({ isOpen: true, draft: buildDraftFromEmail('reply', email) });
+  }, []);
+
+  const openComposeForward = useCallback((email: Email) => {
+    setCompose({ isOpen: true, draft: buildDraftFromEmail('forward', email) });
+  }, []);
+
+  const closeCompose = useCallback(() => {
+    setCompose((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
   const value: EmailContextType = {
     emails,
     selectedEmails,
@@ -145,8 +172,13 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     error,
     currentView,
     selectedEmail,
+    compose,
     setCurrentView,
     setSelectedEmail,
+    openComposeNew,
+    openComposeReply,
+    openComposeForward,
+    closeCompose,
     loadEmails,
     toggleEmailSelection,
     selectAllEmails,
