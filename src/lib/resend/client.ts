@@ -9,15 +9,58 @@ import type {
 } from './types';
 import type { Email } from '@/types/email';
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  const limit = Math.max(1, concurrency);
+  const results: R[] = new Array(items.length);
+  let index = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const current = index++;
+      if (current >= items.length) return;
+      results[current] = await mapper(items[current]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 // ============================================
 // Resend API Client
 // ============================================
 
 export class ResendClient {
   private apiKey: string;
+  private requestQueue: Promise<void> = Promise.resolve();
+  private lastRequestAt = 0;
+  private minIntervalMs = 550; // ~2 req/sec with buffer
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+  }
+
+  private async sleep(ms: number) {
+    await new Promise<void>((resolve) => setTimeout(resolve, ms));
+  }
+
+  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    const run = async () => {
+      const now = Date.now();
+      const wait = Math.max(0, this.minIntervalMs - (now - this.lastRequestAt));
+      if (wait > 0) await this.sleep(wait);
+      const result = await fn();
+      this.lastRequestAt = Date.now();
+      return result;
+    };
+
+    const p = this.requestQueue.then(run);
+    this.requestQueue = p.then(() => undefined, () => undefined);
+    return p;
   }
 
   private async request<T>(
@@ -26,21 +69,37 @@ export class ResendClient {
   ): Promise<T> {
     const url = `${RESEND_API_BASE_URL}${endpoint}`;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+    return this.enqueue(async () => {
+      let attempt = 0;
+      const maxAttempts = 5;
+
+      while (true) {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            ...options.headers,
+          },
+        });
+
+        if (response.status === 429 && attempt < maxAttempts - 1) {
+          attempt++;
+          const retryAfterHeader = response.headers.get('retry-after');
+          const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+          const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : 1000;
+          await this.sleep(Math.min(10_000, retryAfterMs));
+          continue;
+        }
+
+        if (!response.ok) {
+          const error: ResendError = await response.json();
+          throw new Error(`Resend API Error: ${error.message}`);
+        }
+
+        return response.json();
+      }
     });
-
-    if (!response.ok) {
-      const error: ResendError = await response.json();
-      throw new Error(`Resend API Error: ${error.message}`);
-    }
-
-    return response.json();
   }
 
   // ============================================
@@ -132,9 +191,14 @@ export async function syncReceivedEmails(
     after: lastCursor || undefined,
   });
 
-  const emails: Email[] = response.data.map((resendEmail) =>
-    mapResendReceivedEmailToEmail(resendEmail, domainId)
+  // The list endpoint often returns references; retrieve each email for body content.
+  const full = await mapWithConcurrency(
+    response.data,
+    2,
+    async (e) => client.getReceivedEmail(e.id)
   );
+
+  const emails: Email[] = full.map((resendEmail) => mapResendReceivedEmailToEmail(resendEmail, domainId));
 
   // Get next cursor (last email ID if has_more)
   const nextCursor = response.has_more && emails.length > 0
@@ -159,9 +223,14 @@ export async function syncSentEmails(
     after: lastCursor || undefined,
   });
 
-  const emails: Email[] = response.data.map((resendEmail) =>
-    mapResendSentEmailToEmail(resendEmail, domainId)
+  // The list endpoint returns references; retrieve each email for body content.
+  const full = await mapWithConcurrency(
+    response.data,
+    2,
+    async (e) => client.getSentEmail(e.id)
   );
+
+  const emails: Email[] = full.map((resendEmail) => mapResendSentEmailToEmail(resendEmail, domainId));
 
   // Get next cursor (last email ID if has_more)
   const nextCursor = response.has_more && emails.length > 0

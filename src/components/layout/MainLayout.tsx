@@ -4,10 +4,9 @@ import { useCallback, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { EmailList } from '@/components/email/EmailList';
+import { EmailDetail } from '@/components/email/EmailDetail';
 import { useDomains } from '@/hooks/useDomains';
 import { useEmails } from '@/components/providers/EmailProvider';
-import { formatFullDate } from '@/lib/utils/date-helpers';
-import { formatEmailAddress, getEmailPreview } from '@/lib/utils/email-helpers';
 
 export function MainLayout() {
   const { activeDomain } = useDomains();
@@ -22,23 +21,23 @@ export function MainLayout() {
       throw new Error('Please select a domain first');
     }
 
-    const [receivedResponse, sentResponse] = await Promise.all([
-      fetch('/api/emails/received/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domainId: activeDomain.id }),
-      }),
-      fetch('/api/emails/sent/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domainId: activeDomain.id }),
-      }),
-    ]);
+    const receivedResponse = await fetch('/api/emails/received/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domainId: activeDomain.id }),
+    });
 
     if (!receivedResponse.ok) {
       const text = await receivedResponse.text();
       throw new Error(text || 'Failed to sync received emails');
     }
+
+    const sentResponse = await fetch('/api/emails/sent/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domainId: activeDomain.id }),
+    });
+
     if (!sentResponse.ok) {
       const text = await sentResponse.text();
       throw new Error(text || 'Failed to sync sent emails');
@@ -70,32 +69,7 @@ export function MainLayout() {
                 Select an email to view details
               </div>
             ) : (
-              <div className="p-6 space-y-4">
-                <div>
-                  <div className="text-xs text-gray-500 mb-2">{formatFullDate(selectedEmail.createdAt)}</div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {selectedEmail.subject?.trim() ? selectedEmail.subject : '(No subject)'}
-                  </h2>
-                </div>
-
-                <div className="text-sm text-gray-700 space-y-1">
-                  <div>
-                    <span className="text-gray-500">From:</span> {formatEmailAddress(selectedEmail.from)}
-                  </div>
-                  <div>
-                    <span className="text-gray-500">To:</span>{' '}
-                    {selectedEmail.to?.length ? selectedEmail.to.map(formatEmailAddress).join(', ') : '(none)'}
-                  </div>
-                </div>
-
-                <div className="border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 whitespace-pre-wrap">
-                  {getEmailPreview(selectedEmail.text ?? null, selectedEmail.html ?? null, 1500)}
-                </div>
-
-                <div className="text-xs text-gray-500">
-                  Full email rendering and threading are planned for Phase 5.
-                </div>
-              </div>
+              <EmailDetail email={selectedEmail} />
             )}
           </div>
         </div>
@@ -103,4 +77,3 @@ export function MainLayout() {
     </div>
   );
 }
-
