@@ -8,9 +8,12 @@ import { formatEmailAddress, getEmailPreview } from '@/lib/utils/email-helpers';
 import { AttachmentsList } from '@/components/email/AttachmentsList';
 import { EmailThread } from '@/components/email/EmailThread';
 import { Button } from '@/components/ui/Button';
+import { Reply, Forward } from 'lucide-react';
+import { useEmails } from '@/components/providers/EmailProvider';
 
 export function EmailDetail({ email }: { email: Email }) {
   const [mode, setMode] = useState<'html' | 'text'>('html');
+  const { openComposeReply, openComposeForward } = useEmails();
 
   const sanitizedHtml = useMemo(() => {
     const html = email.html ?? null;
@@ -35,6 +38,14 @@ export function EmailDetail({ email }: { email: Email }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => openComposeReply(email)}>
+            <Reply className="w-4 h-4 mr-2" />
+            Reply
+          </Button>
+          <Button variant="secondary" onClick={() => openComposeForward(email)}>
+            <Forward className="w-4 h-4 mr-2" />
+            Forward
+          </Button>
           <Button
             variant={mode === 'text' ? 'primary' : 'secondary'}
             onClick={() => setMode('text')}

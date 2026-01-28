@@ -5,16 +5,14 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { EmailList } from '@/components/email/EmailList';
 import { EmailDetail } from '@/components/email/EmailDetail';
+import { ComposeModal } from '@/components/compose/ComposeModal';
 import { useDomains } from '@/hooks/useDomains';
 import { useEmails } from '@/components/providers/EmailProvider';
 
 export function MainLayout() {
   const { activeDomain } = useDomains();
-  const { currentView, setCurrentView, loadEmails, refreshEmails, selectedEmail } = useEmails();
-
-  const handleCompose = useCallback(() => {
-    alert('Compose functionality is planned for Phase 6.');
-  }, []);
+  const { currentView, setCurrentView, loadEmails, refreshEmails, selectedEmail, compose, openComposeNew, closeCompose } =
+    useEmails();
 
   const handleSync = useCallback(async () => {
     if (!activeDomain) {
@@ -53,10 +51,10 @@ export function MainLayout() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar activeView={currentView} onViewChange={setCurrentView} onCompose={handleCompose} />
+      <Sidebar activeView={currentView} onViewChange={setCurrentView} onCompose={openComposeNew} />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar onSync={handleSync} onCompose={handleCompose} />
+        <TopBar onSync={handleSync} onCompose={openComposeNew} />
 
         <div className="flex flex-1 min-h-0">
           <div className="w-[420px] border-r border-gray-200 bg-white overflow-auto">
@@ -74,6 +72,8 @@ export function MainLayout() {
           </div>
         </div>
       </div>
+
+      <ComposeModal isOpen={compose.isOpen} onClose={closeCompose} initial={compose.draft} />
     </div>
   );
 }
