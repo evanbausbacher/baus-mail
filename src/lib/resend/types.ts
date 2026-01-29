@@ -9,6 +9,7 @@ export interface ResendEmail {
   subject: string;
   html?: string | null;
   text?: string | null;
+  headers?: Record<string, string> | null;
   bcc?: string[] | null;
   cc?: string[] | null;
   reply_to?: string[] | null;
@@ -23,6 +24,7 @@ export interface ResendReceivedEmail {
   subject: string;
   html?: string | null;
   text?: string | null;
+  headers?: Record<string, string> | null;
   bcc?: string[];
   cc?: string[];
   reply_to?: string[];
@@ -65,9 +67,9 @@ export interface ResendSendEmailRequest {
 
 export interface ResendSendEmailResponse {
   id: string;
-  from: string;
-  to: string[];
-  created_at: string;
+  from?: string;
+  to?: string[];
+  created_at?: string;
 }
 
 export interface ResendError {

@@ -1,4 +1,4 @@
-import { RESEND_API_BASE_URL, EMAIL_PAGINATION_LIMIT } from '../constants';
+import { RESEND_API_BASE_URL, EMAIL_PAGINATION_LIMIT, RESEND_CONCURRENT_REQUESTS } from '../constants';
 import type {
   ResendEmail,
   ResendReceivedEmail,
@@ -28,6 +28,15 @@ async function mapWithConcurrency<T, R>(
 
   await Promise.all(workers);
   return results;
+}
+
+function getHeader(headers: Record<string, string> | null | undefined, name: string): string | null {
+  if (!headers) return null;
+  const needle = name.toLowerCase();
+  for (const [k, v] of Object.entries(headers)) {
+    if (k.toLowerCase() === needle) return v;
+  }
+  return null;
 }
 
 // ============================================
@@ -194,7 +203,7 @@ export async function syncReceivedEmails(
   // The list endpoint often returns references; retrieve each email for body content.
   const full = await mapWithConcurrency(
     response.data,
-    2,
+    RESEND_CONCURRENT_REQUESTS,
     async (e) => client.getReceivedEmail(e.id)
   );
 
@@ -226,7 +235,7 @@ export async function syncSentEmails(
   // The list endpoint returns references; retrieve each email for body content.
   const full = await mapWithConcurrency(
     response.data,
-    2,
+    RESEND_CONCURRENT_REQUESTS,
     async (e) => client.getSentEmail(e.id)
   );
 
@@ -252,6 +261,9 @@ function mapResendReceivedEmailToEmail(
   resendEmail: ResendReceivedEmail,
   domainId: string
 ): Email {
+  const inReplyTo = getHeader(resendEmail.headers, 'in-reply-to');
+  const references = getHeader(resendEmail.headers, 'references');
+
   return {
     id: resendEmail.id,
     domainId,
@@ -265,7 +277,7 @@ function mapResendReceivedEmailToEmail(
     subject: resendEmail.subject,
     html: resendEmail.html || null,
     text: resendEmail.text || null,
-    headers: null,
+    headers: resendEmail.headers || null,
     attachments: resendEmail.attachments
       ? resendEmail.attachments.map((a) => ({
           id: a.id,
@@ -276,8 +288,8 @@ function mapResendReceivedEmailToEmail(
           contentDisposition: a.content_disposition ?? null,
         }))
       : null,
-    inReplyTo: null, // TODO: Extract from headers if available
-    references: null, // TODO: Extract from headers if available
+    inReplyTo: inReplyTo || null,
+    references: references || null,
     threadId: resendEmail.message_id || null, // Use message_id as initial thread ID
     createdAt: new Date(resendEmail.created_at),
     syncedAt: new Date(),
@@ -293,6 +305,9 @@ function mapResendSentEmailToEmail(
   resendEmail: ResendEmail,
   domainId: string
 ): Email {
+  const inReplyTo = getHeader(resendEmail.headers ?? null, 'in-reply-to');
+  const references = getHeader(resendEmail.headers ?? null, 'references');
+
   return {
     id: resendEmail.id,
     domainId,
@@ -306,10 +321,10 @@ function mapResendSentEmailToEmail(
     subject: resendEmail.subject,
     html: resendEmail.html || null,
     text: resendEmail.text || null,
-    headers: null,
+    headers: resendEmail.headers || null,
     attachments: null,
-    inReplyTo: null,
-    references: null,
+    inReplyTo: inReplyTo || null,
+    references: references || null,
     threadId: null,
     createdAt: new Date(resendEmail.created_at),
     syncedAt: new Date(),
