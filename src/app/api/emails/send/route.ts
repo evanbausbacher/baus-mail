@@ -6,6 +6,12 @@ import type { Email } from '@/types/email';
 
 export const dynamic = 'force-dynamic';
 
+function safeDate(value: unknown): Date {
+  if (value instanceof Date) return value;
+  const d = typeof value === 'string' || typeof value === 'number' ? new Date(value) : new Date();
+  return Number.isFinite(d.getTime()) ? d : new Date();
+}
+
 // POST /api/emails/send - Send an email via Resend and store it in SQLite
 export async function POST(request: NextRequest) {
   try {
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
       inReplyTo: input.inReplyTo ?? null,
       references: input.references ?? null,
       threadId: null,
-      createdAt: new Date(result.created_at),
+      createdAt: safeDate(result.created_at),
       isRead: true,
       isStarred: false,
       isSpam: false,
@@ -82,4 +88,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

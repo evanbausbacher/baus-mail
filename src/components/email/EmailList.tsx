@@ -5,7 +5,7 @@ import { useDomains } from '@/hooks/useDomains';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { EmailListItem } from '@/components/email/EmailListItem';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { EmailListSkeleton } from '@/components/email/EmailListSkeleton';
 
 export function EmailList() {
   const { activeDomain } = useDomains();
@@ -40,9 +40,7 @@ export function EmailList() {
       </div>
 
       {isLoading ? (
-        <div className="p-6">
-          <LoadingSpinner />
-        </div>
+        <EmailListSkeleton />
       ) : error ? (
         <div className="p-6 text-sm text-red-700">
           {error}
@@ -61,4 +59,3 @@ export function EmailList() {
     </div>
   );
 }
-

@@ -2,6 +2,9 @@ import type { Email } from '@/types/email';
 import type { EmailThread, ThreadEmail, ThreadBuildOptions } from './types';
 import { normalizeSubject, parseEmailAddress } from '@/lib/utils/email-helpers';
 
+const THREAD_DEPTH_ROOT = 0;
+const THREAD_DEPTH_MAX = 8;
+
 function normalizeMessageId(value: string): string {
   return value.trim().replace(/^<|>$/g, '').trim();
 }
@@ -101,16 +104,16 @@ export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): 
     }
 
     const computeDepth = (email: Email): number => {
-      const inReplyTo = email.inReplyTo ? normalizeMessageId(email.inReplyTo) : null;
-      if (inReplyTo && messageIdToEmail.has(inReplyTo)) return 1;
-
       const refs = parseReferences(email.references);
-      if (refs.length === 0) return 0;
+      if (refs.length === 0) return THREAD_DEPTH_ROOT;
 
-      // If the previous reference exists, treat as one level deep for now.
-      const prev = refs[refs.length - 1];
-      if (prev && messageIdToEmail.has(prev)) return 1;
-      return 0;
+      let depth = Math.min(refs.length, THREAD_DEPTH_MAX);
+      if (email.inReplyTo) {
+        const normalized = normalizeMessageId(email.inReplyTo);
+        if (!refs.includes(normalized)) depth = Math.min(depth + 1, THREAD_DEPTH_MAX);
+      }
+
+      return depth;
     };
 
     const threadEmailsWithMeta: ThreadEmail[] = sorted.map((e, idx) => ({
@@ -160,4 +163,3 @@ export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): 
 
   return sortedThreads;
 }
-
