@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { DomainSwitcher } from './DomainSwitcher';
 import { Inbox, Send, Star, AlertOctagon, Trash2, PenSquare } from 'lucide-react';
 import clsx from 'clsx';
@@ -24,7 +25,10 @@ export function Sidebar({ activeView = 'inbox', onViewChange, onCompose }: Sideb
     <div className="w-70 bg-white border-r border-gray-200 flex flex-col h-screen">
       {/* Logo/Brand */}
       <div className="p-4 border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-gray-900">BausMail</h1>
+        <div className="flex items-center gap-3">
+          <Image src="/icon.png" alt="BausMail" width={32} height={32} />
+          <h1 className="text-2xl font-bold text-gray-900">BausMail</h1>
+        </div>
       </div>
 
       {/* Domain Switcher */}

@@ -1,8 +1,8 @@
-import { eq, and, or, desc, sql } from 'drizzle-orm';
-import { db } from './index';
-import { domains, emails, syncState } from './schema';
-import type { Domain, CreateDomainInput, UpdateDomainInput } from '@/types/domain';
-import type { Email, EmailType } from '@/types/email';
+import { eq, and, or, desc, sql, inArray, lt } from "drizzle-orm";
+import { db } from "./index";
+import { domains, emails, syncState } from "./schema";
+import type { Domain, CreateDomainInput, UpdateDomainInput } from "@/types/domain";
+import type { Email, EmailType } from "@/types/email";
 
 type DomainRow = typeof domains.$inferSelect;
 type EmailRow = typeof emails.$inferSelect;
@@ -25,6 +25,20 @@ export async function getDomainById(id: string): Promise<Domain | null> {
 export async function getDomainByName(name: string): Promise<Domain | null> {
   const result = await db.select().from(domains).where(eq(domains.name, name)).limit(1);
   return result.length > 0 ? mapDomainFromDb(result[0]) : null;
+}
+
+export async function getDomainByRecipientAddresses(recipients: string[]): Promise<Domain | null> {
+  const recipientDomains = new Set(
+    recipients
+      .map(extractEmailAddress)
+      .map((email) => email.split("@")[1]?.toLowerCase())
+      .filter((domain): domain is string => Boolean(domain))
+  );
+
+  if (recipientDomains.size === 0) return null;
+
+  const allDomains = await getAllDomains();
+  return allDomains.find((domain) => recipientDomains.has(domain.name.toLowerCase())) ?? null;
 }
 
 export async function createDomain(input: CreateDomainInput): Promise<Domain> {
@@ -83,6 +97,7 @@ export async function getEmailsByDomain(
   options?: {
     limit?: number;
     offset?: number;
+    cursor?: Date;
     includeDeleted?: boolean;
   }
 ): Promise<Email[]> {
@@ -96,6 +111,7 @@ export async function getEmailsByDomain(
       and(
         eq(emails.domainId, domainId),
         type ? eq(emails.type, type) : undefined,
+        options?.cursor ? lt(emails.createdAt, options.cursor) : undefined,
         !options?.includeDeleted ? eq(emails.isDeleted, false) : undefined
       )
     )
@@ -105,6 +121,26 @@ export async function getEmailsByDomain(
 
   const result = await query;
   return result.map(mapEmailFromDb);
+}
+
+export async function getEmailContentState(emailIds: string[]): Promise<Map<string, boolean>> {
+  if (emailIds.length === 0) return new Map();
+
+  const result = await db
+    .select({
+      id: emails.id,
+      html: emails.html,
+      text: emails.text,
+    })
+    .from(emails)
+    .where(inArray(emails.id, emailIds));
+
+  return new Map(
+    result.map((row) => [
+      row.id,
+      Boolean(row.html?.trim() || row.text?.trim()),
+    ])
+  );
 }
 
 export async function getEmailById(id: string): Promise<Email | null> {
@@ -177,7 +213,7 @@ export async function searchEmails(params: {
   return result.map(mapEmailFromDb);
 }
 
-export async function createEmail(email: Omit<Email, 'syncedAt'>): Promise<Email> {
+export async function createEmail(email: Omit<Email, "syncedAt">): Promise<Email> {
   await db.insert(emails).values({
     id: email.id,
     domainId: email.domainId,
@@ -208,7 +244,7 @@ export async function createEmail(email: Omit<Email, 'syncedAt'>): Promise<Email
   return { ...email, syncedAt: new Date() };
 }
 
-export async function upsertEmailRemote(email: Omit<Email, 'syncedAt'>): Promise<void> {
+export async function upsertEmailRemote(email: Omit<Email, "syncedAt">): Promise<void> {
   const now = new Date();
 
   const insertValues: EmailInsertRow = {
@@ -262,6 +298,63 @@ export async function upsertEmailRemote(email: Omit<Email, 'syncedAt'>): Promise
     .onConflictDoUpdate({
       target: emails.id,
       set: updateValues,
+    });
+}
+
+export async function upsertEmailRemotes(emailList: Array<Omit<Email, "syncedAt">>): Promise<void> {
+  if (emailList.length === 0) return;
+
+  const now = new Date();
+  const rows: EmailInsertRow[] = emailList.map((email) => ({
+    id: email.id,
+    domainId: email.domainId,
+    type: email.type,
+    messageId: email.messageId || null,
+    from: email.from,
+    to: JSON.stringify(email.to),
+    cc: email.cc ? JSON.stringify(email.cc) : null,
+    bcc: email.bcc ? JSON.stringify(email.bcc) : null,
+    replyTo: email.replyTo ? JSON.stringify(email.replyTo) : null,
+    subject: email.subject,
+    html: email.html || null,
+    text: email.text || null,
+    headers: email.headers ? JSON.stringify(email.headers) : null,
+    attachments: email.attachments ? JSON.stringify(email.attachments) : null,
+    inReplyTo: email.inReplyTo || null,
+    references: email.references || null,
+    threadId: email.threadId || null,
+    createdAt: email.createdAt,
+    syncedAt: now,
+    isRead: email.isRead,
+    isStarred: email.isStarred,
+    isSpam: email.isSpam,
+    isDeleted: email.isDeleted,
+    labels: email.labels ? JSON.stringify(email.labels) : null,
+  }));
+
+  await db
+    .insert(emails)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: emails.id,
+      set: {
+        messageId: sql`excluded.message_id`,
+        from: sql`excluded."from"`,
+        to: sql`excluded."to"`,
+        cc: sql`excluded.cc`,
+        bcc: sql`excluded.bcc`,
+        replyTo: sql`excluded.reply_to`,
+        subject: sql`excluded.subject`,
+        html: sql`excluded.html`,
+        text: sql`excluded.text`,
+        headers: sql`excluded.headers`,
+        attachments: sql`excluded.attachments`,
+        inReplyTo: sql`excluded.in_reply_to`,
+        references: sql`excluded.references`,
+        threadId: sql`excluded.thread_id`,
+        createdAt: sql`excluded.created_at`,
+        syncedAt: now,
+      },
     });
 }
 
@@ -341,7 +434,7 @@ export async function updateSyncState(
 function mapDomainFromDb(row: DomainRow): Domain {
   const toDate = (value: unknown) => {
     if (value instanceof Date) return value;
-    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    if (typeof value === "string" || typeof value === "number") return new Date(value);
     return new Date(String(value));
   };
 
@@ -358,7 +451,7 @@ function mapDomainFromDb(row: DomainRow): Domain {
 function mapEmailFromDb(row: EmailRow): Email {
   const toDate = (value: unknown) => {
     if (value instanceof Date) return value;
-    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    if (typeof value === "string" || typeof value === "number") return new Date(value);
     return new Date(String(value));
   };
 
@@ -388,4 +481,9 @@ function mapEmailFromDb(row: EmailRow): Email {
     isDeleted: Boolean(row.isDeleted),
     labels: row.labels ? JSON.parse(row.labels) : null,
   };
+}
+
+function extractEmailAddress(value: string): string {
+  const match = value.match(/<([^>]+)>/);
+  return (match?.[1] ?? value).trim().toLowerCase();
 }

@@ -12,7 +12,7 @@ function safeDate(value: unknown): Date {
   return Number.isFinite(d.getTime()) ? d : new Date();
 }
 
-// POST /api/emails/send - Send an email via Resend and store it in SQLite
+// POST /api/emails/send - Send an email via Resend and store it in Postgres
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

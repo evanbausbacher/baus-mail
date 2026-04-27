@@ -1,4 +1,4 @@
-import { RESEND_API_BASE_URL, EMAIL_PAGINATION_LIMIT, RESEND_CONCURRENT_REQUESTS } from '../constants';
+import { RESEND_API_BASE_URL, EMAIL_PAGINATION_LIMIT, RESEND_CONCURRENT_REQUESTS } from "../constants";
 import type {
   ResendEmail,
   ResendReceivedEmail,
@@ -6,8 +6,8 @@ import type {
   ResendSendEmailRequest,
   ResendSendEmailResponse,
   ResendError,
-} from './types';
-import type { Email } from '@/types/email';
+} from "./types";
+import type { Email } from "@/types/email";
 
 async function mapWithConcurrency<T, R>(
   items: T[],
@@ -86,15 +86,15 @@ export class ResendClient {
         const response = await fetch(url, {
           ...options,
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
             ...options.headers,
           },
         });
 
         if (response.status === 429 && attempt < maxAttempts - 1) {
           attempt++;
-          const retryAfterHeader = response.headers.get('retry-after');
+          const retryAfterHeader = response.headers.get("retry-after");
           const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
           const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : 1000;
           await this.sleep(Math.min(10_000, retryAfterMs));
@@ -121,11 +121,11 @@ export class ResendClient {
     before?: string;
   }): Promise<ResendListResponse<ResendReceivedEmail>> {
     const params = new URLSearchParams();
-    if (options?.limit) params.append('limit', String(options.limit));
-    if (options?.after) params.append('after', options.after);
-    if (options?.before) params.append('before', options.before);
+    if (options?.limit) params.append("limit", String(options.limit));
+    if (options?.after) params.append("after", options.after);
+    if (options?.before) params.append("before", options.before);
 
-    const query = params.toString() ? `?${params.toString()}` : '';
+    const query = params.toString() ? `?${params.toString()}` : "";
     return this.request<ResendListResponse<ResendReceivedEmail>>(
       `/emails/receiving${query}`
     );
@@ -145,11 +145,11 @@ export class ResendClient {
     before?: string;
   }): Promise<ResendListResponse<ResendEmail>> {
     const params = new URLSearchParams();
-    if (options?.limit) params.append('limit', String(options.limit));
-    if (options?.after) params.append('after', options.after);
-    if (options?.before) params.append('before', options.before);
+    if (options?.limit) params.append("limit", String(options.limit));
+    if (options?.after) params.append("after", options.after);
+    if (options?.before) params.append("before", options.before);
 
-    const query = params.toString() ? `?${params.toString()}` : '';
+    const query = params.toString() ? `?${params.toString()}` : "";
     return this.request<ResendListResponse<ResendEmail>>(`/emails${query}`);
   }
 
@@ -164,8 +164,8 @@ export class ResendClient {
   async sendEmail(
     data: ResendSendEmailRequest
   ): Promise<ResendSendEmailResponse> {
-    return this.request<ResendSendEmailResponse>('/emails', {
-      method: 'POST',
+    return this.request<ResendSendEmailResponse>("/emails", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -192,27 +192,24 @@ export class ResendClient {
 export async function syncReceivedEmails(
   apiKey: string,
   domainId: string,
-  lastCursor?: string | null
+  latestKnownId?: string | null,
+  getContentState?: (ids: string[]) => Promise<Map<string, boolean>>
 ): Promise<{ emails: Email[]; nextCursor: string | null; hasMore: boolean }> {
   const client = new ResendClient(apiKey);
   const response = await client.listReceivedEmails({
     limit: EMAIL_PAGINATION_LIMIT,
-    after: lastCursor || undefined,
+    before: latestKnownId || undefined,
   });
 
-  // The list endpoint often returns references; retrieve each email for body content.
-  const full = await mapWithConcurrency(
-    response.data,
-    RESEND_CONCURRENT_REQUESTS,
-    async (e) => client.getReceivedEmail(e.id)
-  );
+  const contentState = getContentState ? await getContentState(response.data.map((email) => email.id)) : new Map();
+  const full = await mapWithConcurrency(response.data, RESEND_CONCURRENT_REQUESTS, async (email) => {
+    if (contentState.get(email.id) && (email.html || email.text)) return email;
+    return client.getReceivedEmail(email.id);
+  });
 
   const emails: Email[] = full.map((resendEmail) => mapResendReceivedEmailToEmail(resendEmail, domainId));
 
-  // Get next cursor (last email ID if has_more)
-  const nextCursor = response.has_more && emails.length > 0
-    ? emails[emails.length - 1].id
-    : null;
+  const nextCursor = response.data.length > 0 ? response.data[0].id : null;
 
   return {
     emails,
@@ -224,27 +221,24 @@ export async function syncReceivedEmails(
 export async function syncSentEmails(
   apiKey: string,
   domainId: string,
-  lastCursor?: string | null
+  latestKnownId?: string | null,
+  getContentState?: (ids: string[]) => Promise<Map<string, boolean>>
 ): Promise<{ emails: Email[]; nextCursor: string | null; hasMore: boolean }> {
   const client = new ResendClient(apiKey);
   const response = await client.listSentEmails({
     limit: EMAIL_PAGINATION_LIMIT,
-    after: lastCursor || undefined,
+    before: latestKnownId || undefined,
   });
 
-  // The list endpoint returns references; retrieve each email for body content.
-  const full = await mapWithConcurrency(
-    response.data,
-    RESEND_CONCURRENT_REQUESTS,
-    async (e) => client.getSentEmail(e.id)
-  );
+  const contentState = getContentState ? await getContentState(response.data.map((email) => email.id)) : new Map();
+  const full = await mapWithConcurrency(response.data, RESEND_CONCURRENT_REQUESTS, async (email) => {
+    if (contentState.get(email.id) && (email.html || email.text)) return email;
+    return client.getSentEmail(email.id);
+  });
 
   const emails: Email[] = full.map((resendEmail) => mapResendSentEmailToEmail(resendEmail, domainId));
 
-  // Get next cursor (last email ID if has_more)
-  const nextCursor = response.has_more && emails.length > 0
-    ? emails[emails.length - 1].id
-    : null;
+  const nextCursor = response.data.length > 0 ? response.data[0].id : null;
 
   return {
     emails,
@@ -257,17 +251,17 @@ export async function syncSentEmails(
 // Mapping Functions
 // ============================================
 
-function mapResendReceivedEmailToEmail(
+export function mapResendReceivedEmailToEmail(
   resendEmail: ResendReceivedEmail,
   domainId: string
 ): Email {
-  const inReplyTo = getHeader(resendEmail.headers, 'in-reply-to');
-  const references = getHeader(resendEmail.headers, 'references');
+  const inReplyTo = getHeader(resendEmail.headers, "in-reply-to");
+  const references = getHeader(resendEmail.headers, "references");
 
   return {
     id: resendEmail.id,
     domainId,
-    type: 'received',
+    type: "received",
     messageId: resendEmail.message_id || null,
     from: resendEmail.from,
     to: resendEmail.to,
@@ -301,17 +295,17 @@ function mapResendReceivedEmailToEmail(
   };
 }
 
-function mapResendSentEmailToEmail(
+export function mapResendSentEmailToEmail(
   resendEmail: ResendEmail,
   domainId: string
 ): Email {
-  const inReplyTo = getHeader(resendEmail.headers ?? null, 'in-reply-to');
-  const references = getHeader(resendEmail.headers ?? null, 'references');
+  const inReplyTo = getHeader(resendEmail.headers ?? null, "in-reply-to");
+  const references = getHeader(resendEmail.headers ?? null, "references");
 
   return {
     id: resendEmail.id,
     domainId,
-    type: 'sent',
+    type: "sent",
     messageId: null, // Sent emails don't have message_id in list response
     from: resendEmail.from,
     to: resendEmail.to,

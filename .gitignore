@@ -37,7 +37,6 @@ next-env.d.ts
 *.db
 *.db-shm
 *.db-wal
-/drizzle/*.sql
 
 # Python (old venv)
 venv/

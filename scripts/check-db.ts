@@ -34,8 +34,7 @@ async function checkDatabase() {
     });
   }
 
-  console.log('\nDatabase path:', process.env.DATABASE_URL || 'file:./bausmail.db');
-  console.log('Resolved path:', './bausmail.db');
+  console.log('\nDatabase URL:', process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/bausmail');
 }
 
 checkDatabase().catch(console.error);

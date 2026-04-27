@@ -1,20 +1,24 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import * as schema from '../src/lib/db/schema';
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
-const databaseUrl = process.env.DATABASE_URL || 'file:./bausmail.db';
-const dbPath = databaseUrl.replace('file:', '');
+const connectionString =
+  process.env.DATABASE_URL || 'postgres://postgres:ProtoLink1755@localhost:5432/bausmail';
 
-const sqlite = new Database(dbPath);
-sqlite.pragma('journal_mode = WAL');
+async function main() {
+  const pool = new Pool({ connectionString });
+  const db = drizzle(pool);
 
-const db = drizzle(sqlite, { schema });
+  console.log('Running migrations...');
 
-console.log('Running migrations...');
+  await migrate(db, { migrationsFolder: './drizzle' });
 
-migrate(db, { migrationsFolder: './drizzle' });
+  console.log('Migrations completed!');
 
-console.log('Migrations completed!');
+  await pool.end();
+}
 
-sqlite.close();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

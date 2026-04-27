@@ -4,7 +4,7 @@ import { searchEmails } from '@/lib/db/queries';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/search - Search cached emails in SQLite
+// POST /api/search - Search cached emails in Postgres
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

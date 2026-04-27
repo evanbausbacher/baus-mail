@@ -10,16 +10,16 @@ export function EmailActions({ email }: { email: Email }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="ghost" onClick={() => toggleStar(email)} disabled={isActing} aria-label="Star">
+      <Button variant="ghost" onClick={() => toggleStar(email)} disabled={isActing} aria-label="Star" tooltip={email.isStarred ? 'Unstar' : 'Star'}>
         <Star className="w-4 h-4" fill={email.isStarred ? 'currentColor' : 'none'} />
       </Button>
-      <Button variant="ghost" onClick={() => toggleRead(email)} disabled={isActing} aria-label="Mark read/unread">
+      <Button variant="ghost" onClick={() => toggleRead(email)} disabled={isActing} aria-label="Mark read/unread" tooltip={email.isRead ? 'Mark as unread' : 'Mark as read'}>
         {email.isRead ? <Mail className="w-4 h-4" /> : <MailOpen className="w-4 h-4" />}
       </Button>
-      <Button variant="ghost" onClick={() => toggleSpam(email)} disabled={isActing} aria-label="Spam">
+      <Button variant="ghost" onClick={() => toggleSpam(email)} disabled={isActing} aria-label="Spam" tooltip={email.isSpam ? 'Not spam' : 'Mark as spam'}>
         <AlertOctagon className="w-4 h-4" />
       </Button>
-      <Button variant="ghost" onClick={() => trash(email)} disabled={isActing} aria-label="Delete">
+      <Button variant="ghost" onClick={() => trash(email)} disabled={isActing} aria-label="Delete" tooltip="Delete">
         <Trash2 className="w-4 h-4" />
       </Button>
     </div>

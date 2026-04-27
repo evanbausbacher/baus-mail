@@ -48,12 +48,12 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
           <h1 className="text-2xl font-bold text-gray-900">{viewTitle}</h1>
           <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               onClick={handleSync}
               disabled={isSyncing || !activeDomain}
+              tooltip={isSyncing ? 'Syncing...' : 'Sync'}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Syncing...' : 'Sync'}
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
             </Button>
             <Button variant="primary" onClick={onCompose}>
               Compose
@@ -89,6 +89,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 variant="ghost"
                 onClick={() => handleBulkAction('markRead')}
                 disabled={isActing}
+                tooltip="Mark as read"
               >
                 <Mail className="w-4 h-4" />
               </Button>
@@ -96,6 +97,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 variant="ghost"
                 onClick={() => handleBulkAction('markUnread')}
                 disabled={isActing}
+                tooltip="Mark as unread"
               >
                 <MailOpen className="w-4 h-4" />
               </Button>
@@ -103,6 +105,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 variant="ghost"
                 onClick={() => handleBulkAction('delete')}
                 disabled={isActing}
+                tooltip="Delete"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -110,6 +113,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 variant="ghost"
                 onClick={() => handleBulkAction('star')}
                 disabled={isActing}
+                tooltip="Star"
               >
                 <Star className="w-4 h-4" />
               </Button>
@@ -117,6 +121,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 variant="ghost"
                 onClick={() => handleBulkAction('unstar')}
                 disabled={isActing}
+                tooltip="Unstar"
               >
                 <Star className="w-4 h-4 text-gray-400" />
               </Button>
@@ -124,6 +129,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 variant="ghost"
                 onClick={() => handleBulkAction('spam')}
                 disabled={isActing}
+                tooltip="Mark as spam"
               >
                 <AlertOctagon className="w-4 h-4" />
               </Button>
@@ -131,6 +137,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 variant="ghost"
                 onClick={clearSelection}
                 disabled={isActing}
+                tooltip="Clear selection"
               >
                 Clear
               </Button>
