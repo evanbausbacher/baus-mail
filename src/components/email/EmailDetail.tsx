@@ -48,13 +48,11 @@ export function EmailDetail({ email }: { email: Email }) {
 
         <div className="flex items-center gap-2">
           <EmailActions email={email} />
-          <Button variant="secondary" onClick={() => openComposeReply(email)}>
-            <Reply className="w-4 h-4 mr-2" />
-            Reply
+          <Button variant="ghost" onClick={() => openComposeReply(email)} tooltip="Reply">
+            <Reply className="w-4 h-4" />
           </Button>
-          <Button variant="secondary" onClick={() => openComposeForward(email)}>
-            <Forward className="w-4 h-4 mr-2" />
-            Forward
+          <Button variant="ghost" onClick={() => openComposeForward(email)} tooltip="Forward">
+            <Forward className="w-4 h-4" />
           </Button>
           <Button
             variant={mode === 'text' ? 'primary' : 'secondary'}

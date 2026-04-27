@@ -1,18 +1,13 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { auth } from '../../auth';
+import { BausMailApp } from '@/components/BausMailApp';
 
-import { DomainProvider } from '@/components/providers/DomainProvider';
-import { EmailProvider } from '@/components/providers/EmailProvider';
-import { PollingProvider } from '@/components/providers/PollingProvider';
-import { MainLayout } from '@/components/layout/MainLayout';
+export default async function Home() {
+  const session = await auth();
 
-export default function Home() {
-  return (
-    <DomainProvider>
-      <EmailProvider>
-        <PollingProvider>
-          <MainLayout />
-        </PollingProvider>
-      </EmailProvider>
-    </DomainProvider>
-  );
+  if (!session?.user?.email) {
+    redirect('/api/auth/signin?callbackUrl=/');
+  }
+
+  return <BausMailApp />;
 }

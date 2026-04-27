@@ -5,6 +5,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
+  tooltip?: string;
 }
 
 export function Button({
@@ -12,6 +13,7 @@ export function Button({
   size = 'md',
   className,
   children,
+  tooltip,
   ...props
 }: ButtonProps) {
   const baseStyles = 'font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
@@ -32,6 +34,7 @@ export function Button({
   return (
     <button
       className={clsx(baseStyles, variants[variant], sizes[size], className)}
+      title={tooltip}
       {...props}
     >
       {children}

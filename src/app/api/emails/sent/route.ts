@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const domainId = searchParams.get('domainId');
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
+    const cursorParam = searchParams.get('cursor');
+    const cursor = cursorParam ? new Date(cursorParam) : undefined;
     const includeDeleted = searchParams.get('includeDeleted') === 'true' || searchParams.get('includeDeleted') === '1';
 
     if (!domainId) {
@@ -17,12 +19,17 @@ export async function GET(request: NextRequest) {
     }
 
     const emails = await getEmailsByDomain(domainId, 'sent', {
-      limit,
+      limit: limit + 1,
       offset,
+      cursor,
       includeDeleted,
     });
 
-    return NextResponse.json({ emails });
+    const hasMore = emails.length > limit;
+    const page = hasMore ? emails.slice(0, limit) : emails;
+    const nextCursor = hasMore ? page[page.length - 1]?.createdAt.toISOString() ?? null : null;
+
+    return NextResponse.json({ emails: page, nextCursor, hasMore });
   } catch (error) {
     console.error('Error fetching sent emails:', error);
     return NextResponse.json(

@@ -1,19 +1,19 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { boolean, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 // Domains table
-export const domains = sqliteTable('domains', {
+export const domains = pgTable('domains', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text('name').notNull().unique(), // e.g., "trainingdojo.app"
   apiKey: text('api_key').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  lastSyncedAt: integer('last_synced_at', { mode: 'timestamp' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()),
+  isActive: boolean('is_active').notNull().default(true),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
 }, (table) => ({
   nameIdx: index('name_idx').on(table.name),
 }));
 
 // Emails table (unified for sent and received)
-export const emails = sqliteTable('emails', {
+export const emails = pgTable('emails', {
   id: text('id').primaryKey(), // Resend email ID
   domainId: text('domain_id').notNull().references(() => domains.id, { onDelete: 'cascade' }),
 
@@ -41,18 +41,19 @@ export const emails = sqliteTable('emails', {
   threadId: text('thread_id'), // Computed thread identifier
 
   // Timestamps
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  syncedAt: integer('synced_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  syncedAt: timestamp('synced_at', { withTimezone: true }).$defaultFn(() => new Date()),
 
   // Local metadata
-  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
-  isStarred: integer('is_starred', { mode: 'boolean' }).notNull().default(false),
-  isSpam: integer('is_spam', { mode: 'boolean' }).notNull().default(false),
-  isDeleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
+  isRead: boolean('is_read').notNull().default(false),
+  isStarred: boolean('is_starred').notNull().default(false),
+  isSpam: boolean('is_spam').notNull().default(false),
+  isDeleted: boolean('is_deleted').notNull().default(false),
 
   // Tags/labels
   labels: text('labels'), // JSON array string
 }, (table) => ({
+  domainTypeCreatedIdx: index('emails_domain_type_created_idx').on(table.domainId, table.type, table.createdAt),
   domainIdx: index('domain_idx').on(table.domainId),
   typeIdx: index('type_idx').on(table.type),
   threadIdx: index('thread_idx').on(table.threadId),
@@ -61,13 +62,13 @@ export const emails = sqliteTable('emails', {
   isDeletedIdx: index('is_deleted_idx').on(table.isDeleted),
 }));
 
-// Sync state tracking (prevents duplicate syncs)
-export const syncState = sqliteTable('sync_state', {
+// Sync state tracking (stores newest known Resend email ID per domain/type)
+export const syncState = pgTable('sync_state', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   domainId: text('domain_id').notNull().references(() => domains.id, { onDelete: 'cascade' }),
   type: text('type', { enum: ['sent', 'received'] }).notNull(),
-  lastCursor: text('last_cursor'), // Pagination cursor from Resend
-  lastSyncedAt: integer('last_synced_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  lastCursor: text('last_cursor'), // Newest known Resend email ID
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }).$defaultFn(() => new Date()),
 }, (table) => ({
   domainTypeIdx: index('domain_type_idx').on(table.domainId, table.type),
 }));

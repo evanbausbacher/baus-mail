@@ -1,18 +1,28 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schema';
 
-const databaseUrl = process.env.DATABASE_URL || 'file:./bausmail.db';
-const dbPath = databaseUrl.replace('file:', '');
+const connectionString = process.env.DATABASE_URL;
 
-// Initialize SQLite database
-const sqlite = new Database(dbPath);
+if (!connectionString) {
+  throw new Error('DATABASE_URL is required');
+}
 
-// Enable WAL mode for better concurrency
-sqlite.pragma('journal_mode = WAL');
+const globalForDb = globalThis as typeof globalThis & {
+  bausMailPool?: Pool;
+};
 
-// Create drizzle instance
-export const db = drizzle(sqlite, { schema });
+const pool =
+  globalForDb.bausMailPool ??
+  new Pool({
+    connectionString,
+    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+  });
 
-// Export types
+if (process.env.NODE_ENV !== 'production') {
+  globalForDb.bausMailPool = pool;
+}
+
+export const db = drizzle(pool, { schema });
+
 export type Database = typeof db;

@@ -10,13 +10,13 @@ A simple, elegant web-based email client for managing multiple Resend-powered do
 - ⭐ **Email Actions** - Star, delete, mark as read/unread, flag as spam
 - 🔍 **Search & Filter** - Find emails quickly
 - 🎨 **Monochromatic Design** - Clean, professional interface with zero border-radius
-- 🔄 **Auto-Sync** - Automatically fetches new emails every 30 seconds
-- 💾 **Local Storage** - SQLite database for fast, local email caching
+- 🔄 **Webhook-First Sync** - Ingests received email through Resend webhooks with incremental sync fallback
+- 💾 **Database Storage** - Postgres database for fast email caching
 
 ## Tech Stack
 
 - **Framework**: Next.js 14+ with App Router
-- **Database**: SQLite with Drizzle ORM
+- **Database**: Postgres with Drizzle ORM
 - **Styling**: Tailwind CSS
 - **Email Service**: Resend API
 
@@ -26,6 +26,7 @@ A simple, elegant web-based email client for managing multiple Resend-powered do
 
 - Node.js 18.0.0 or higher
 - npm or yarn
+- Postgres
 
 ### Installation
 
@@ -47,7 +48,7 @@ cp .env.example .env.local
 
 4. Run database migrations:
 ```bash
-npm run db:push
+npm run db:migrate
 ```
 
 5. Start the development server:
@@ -83,6 +84,7 @@ npm run dev
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run db:generate` - Generate database migrations
+- `npm run db:migrate` - Run database migrations
 - `npm run db:push` - Push schema changes to database
 - `npm run db:studio` - Open Drizzle Studio
 
