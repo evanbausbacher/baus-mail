@@ -5,8 +5,7 @@ const PUBLIC_PATHS = [
   '/api/auth',
   '/api/webhooks/resend',
   '/favicon.ico',
-  '/icon.png',
-  '/apple-icon.png',
+  '/apple-touch-icon.png',
 ];
 
 function isPublicPath(pathname: string) {

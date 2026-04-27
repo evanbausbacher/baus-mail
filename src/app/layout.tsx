@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   title: 'BausMail - Resend Email Client',
   description: 'A simple web-based email client for managing Resend-powered domains',
   icons: {
-    icon: '/icon.png',
-    apple: '/apple-icon.png',
+    icon: '/apple-touch-icon.png',
+    apple: '/apple-touch-icon.png',
   },
 };
 
