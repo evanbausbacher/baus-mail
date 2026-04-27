@@ -26,7 +26,7 @@ export function Sidebar({ activeView = 'inbox', onViewChange, onCompose }: Sideb
       {/* Logo/Brand */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <Image src="/icon.png" alt="BausMail" width={32} height={32} />
+          <Image src="/apple-touch-icon.png" alt="BausMail" width={32} height={32} />
           <h1 className="text-2xl font-bold text-gray-900">BausMail</h1>
         </div>
       </div>
