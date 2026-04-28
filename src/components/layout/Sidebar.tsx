@@ -6,6 +6,7 @@ import { DomainSwitcher } from './DomainSwitcher';
 import { Inbox, Send, Star, AlertOctagon, Trash2, PenSquare, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import type { EmailView } from '@/components/providers/EmailProvider';
+import { APP_VERSION } from '@/lib/version';
 
 interface SidebarProps {
   activeView?: EmailView;
@@ -35,7 +36,7 @@ export function Sidebar({ activeView = 'inbox', onViewChange, onCompose, onOpenS
       <DomainSwitcher />
 
       {onCompose && (
-        <div className="px-4 pb-4">
+        <div className="px-4 py-4">
           <button
             type="button"
             onClick={onCompose}
@@ -87,7 +88,7 @@ export function Sidebar({ activeView = 'inbox', onViewChange, onCompose, onOpenS
       </div>
 
       <div className="px-4 py-3 border-t border-line text-xs text-ink-subtle">
-        BausMail · v0.1.0
+        BausMail v{APP_VERSION}
       </div>
     </div>
   );

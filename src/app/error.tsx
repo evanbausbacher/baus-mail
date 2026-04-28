@@ -10,8 +10,9 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const showDetails = process.env.NODE_ENV !== 'production';
+
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.error('Route error:', error);
   }, [error]);
 
@@ -20,7 +21,9 @@ export default function ErrorPage({
       <div className="max-w-xl w-full bg-surface rounded-2xl border border-line shadow-ios p-6 space-y-3">
         <div className="text-xl font-semibold text-ink">Something went wrong</div>
         <div className="text-sm text-ink-muted whitespace-pre-wrap">
-          {error.message}
+          {showDetails
+            ? error.message
+            : 'The request could not be completed. Check the server logs for details.'}
         </div>
         <div className="flex items-center gap-2 pt-2">
           <Button variant="secondary" onClick={reset}>
@@ -34,4 +37,3 @@ export default function ErrorPage({
     </div>
   );
 }
-

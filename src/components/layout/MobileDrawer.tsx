@@ -3,13 +3,13 @@
 import { useEffect } from 'react';
 import clsx from 'clsx';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Inbox,
   Send,
   Star,
   AlertOctagon,
   Trash2,
-  Plus,
   Settings,
   LogOut,
   Check,
@@ -23,7 +23,6 @@ interface MobileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenSettings: () => void;
-  onAddDomain: () => void;
 }
 
 const FOLDERS: Array<{ id: EmailView; label: string; Icon: typeof Inbox }> = [
@@ -34,7 +33,7 @@ const FOLDERS: Array<{ id: EmailView; label: string; Icon: typeof Inbox }> = [
   { id: 'trash', label: 'Trash', Icon: Trash2 },
 ];
 
-export function MobileDrawer({ isOpen, onClose, onOpenSettings, onAddDomain }: MobileDrawerProps) {
+export function MobileDrawer({ isOpen, onClose, onOpenSettings }: MobileDrawerProps) {
   const { currentView, setCurrentView } = useEmails();
   const { domains, activeDomain, setActiveDomain } = useDomains();
 
@@ -126,21 +125,11 @@ export function MobileDrawer({ isOpen, onClose, onOpenSettings, onAddDomain }: M
                 </li>
               );
             })}
-            <li>
-              <button
-                type="button"
-                onClick={() => {
-                  onAddDomain();
-                  onClose();
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-accent hover:bg-line/40"
-              >
-                <div className="h-9 w-9 rounded-full inline-flex items-center justify-center bg-accent/10">
-                  <Plus className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-medium">Add mailbox</span>
-              </button>
-            </li>
+            {domains.length === 0 && (
+              <li className="px-3 py-3 text-xs leading-5 text-ink-subtle">
+                Configure RESEND_DOMAIN_API_KEYS on the server.
+              </li>
+            )}
           </ul>
 
           {/* Folders */}
@@ -184,13 +173,13 @@ export function MobileDrawer({ isOpen, onClose, onOpenSettings, onAddDomain }: M
             <Settings className="w-5 h-5 text-ink-muted" />
             <span className="text-sm font-medium">Settings</span>
           </button>
-          <a
+          <Link
             href="/api/auth/signout"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-ink hover:bg-line/40"
           >
             <LogOut className="w-5 h-5 text-ink-muted" />
             <span className="text-sm font-medium">Sign out</span>
-          </a>
+          </Link>
         </div>
       </aside>
     </div>

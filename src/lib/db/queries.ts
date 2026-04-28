@@ -17,6 +17,37 @@ export async function getAllDomains(): Promise<Domain[]> {
   return result.map(mapDomainFromDb);
 }
 
+export async function syncDomainsFromConfig(domainNames: string[]): Promise<Domain[]> {
+  const configuredNames = new Set(domainNames.map((name) => name.trim().toLowerCase()).filter(Boolean));
+
+  await db.transaction(async (tx) => {
+    const existingDomains = await tx.select().from(domains);
+
+    for (const domain of existingDomains) {
+      if (!configuredNames.has(domain.name.toLowerCase())) {
+        await tx.delete(emails).where(eq(emails.domainId, domain.id));
+        await tx.delete(syncState).where(eq(syncState.domainId, domain.id));
+        await tx.delete(domains).where(eq(domains.id, domain.id));
+      }
+    }
+
+    for (const name of configuredNames) {
+      const exists = existingDomains.some((domain) => domain.name.toLowerCase() === name);
+      if (!exists) {
+        await tx.insert(domains).values({
+          id: crypto.randomUUID(),
+          name,
+          createdAt: new Date(),
+          isActive: true,
+          lastSyncedAt: null,
+        });
+      }
+    }
+  });
+
+  return getAllDomains();
+}
+
 export async function getDomainById(id: string): Promise<Domain | null> {
   const result = await db.select().from(domains).where(eq(domains.id, id)).limit(1);
   return result.length > 0 ? mapDomainFromDb(result[0]) : null;
@@ -42,38 +73,30 @@ export async function getDomainByRecipientAddresses(recipients: string[]): Promi
 }
 
 export async function createDomain(input: CreateDomainInput): Promise<Domain> {
-  const id = crypto.randomUUID();
-  const createdAt = new Date();
-  const aliases = input.aliases ?? [];
+  const newDomain = {
+    id: crypto.randomUUID(),
+    name: input.name,
+    createdAt: new Date(),
+    isActive: true,
+    lastSyncedAt: null,
+  };
 
   await db.insert(domains).values({
-    id,
-    name: input.name,
-    apiKey: input.apiKey,
-    createdAt,
+    id: newDomain.id,
+    name: newDomain.name,
+    createdAt: newDomain.createdAt,
     isActive: true,
     lastSyncedAt: null,
-    aliases: JSON.stringify(aliases),
   });
 
-  return {
-    id,
-    name: input.name,
-    apiKey: input.apiKey,
-    createdAt,
-    isActive: true,
-    lastSyncedAt: null,
-    aliases,
-  };
+  return newDomain;
 }
 
 export async function updateDomain(id: string, input: UpdateDomainInput): Promise<Domain | null> {
   const updates: Record<string, unknown> = {};
 
   if (input.name !== undefined) updates.name = input.name;
-  if (input.apiKey !== undefined) updates.apiKey = input.apiKey;
   if (input.isActive !== undefined) updates.isActive = input.isActive;
-  if (input.aliases !== undefined) updates.aliases = JSON.stringify(input.aliases);
 
   if (Object.keys(updates).length === 0) {
     return getDomainById(id);
@@ -84,7 +107,12 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
 }
 
 export async function deleteDomain(id: string): Promise<boolean> {
-  await db.delete(domains).where(eq(domains.id, id));
+  await db.transaction(async (tx) => {
+    await tx.delete(emails).where(eq(emails.domainId, id));
+    await tx.delete(syncState).where(eq(syncState.domainId, id));
+    await tx.delete(domains).where(eq(domains.id, id));
+  });
+
   return true;
 }
 
@@ -443,24 +471,12 @@ function mapDomainFromDb(row: DomainRow): Domain {
     return new Date(String(value));
   };
 
-  let aliases: string[] = [];
-  if (row.aliases) {
-    try {
-      const parsed = JSON.parse(row.aliases);
-      if (Array.isArray(parsed)) aliases = parsed.filter((v): v is string => typeof v === "string");
-    } catch {
-      aliases = [];
-    }
-  }
-
   return {
     id: row.id,
     name: row.name,
-    apiKey: row.apiKey,
     createdAt: toDate(row.createdAt),
     isActive: Boolean(row.isActive),
     lastSyncedAt: row.lastSyncedAt ? toDate(row.lastSyncedAt) : null,
-    aliases,
   };
 }
 
