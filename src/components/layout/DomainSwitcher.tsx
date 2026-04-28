@@ -4,12 +4,10 @@ import React, { useState } from 'react';
 import { useDomains } from '@/hooks/useDomains';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 
 export function DomainSwitcher() {
   const { domains, activeDomain, setActiveDomain, addDomain } = useDomains();
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newDomainName, setNewDomainName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +26,6 @@ export function DomainSwitcher() {
 
     try {
       await addDomain(newDomainName);
-      setIsAddModalOpen(false);
       setNewDomainName('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add domain');
@@ -39,83 +36,20 @@ export function DomainSwitcher() {
 
   if (domains.length === 0) {
     return (
-      <div className="p-4">
-        <Button
-          variant="primary"
-          onClick={() => setIsAddModalOpen(true)}
-          className="w-full"
-        >
-          Add First Domain
-        </Button>
+      <div className="p-4 space-y-4">
+        <div className="space-y-2 text-sm text-gray-700">
+          <p className="font-medium text-gray-900">Configure a domain</p>
+          <p>
+            Add the domain and its Resend API key to the server-only
+            RESEND_DOMAIN_API_KEYS environment variable, then register the same
+            domain here.
+          </p>
+          <code className="block whitespace-pre-wrap bg-gray-100 px-3 py-2 text-xs text-gray-800">
+            {'{"example.com":"<resend-api-key-for-example.com>"}'}
+          </code>
+        </div>
 
-        <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          title="Add Domain"
-        >
-          <form onSubmit={handleAddDomain} className="space-y-4">
-            <Input
-              label="Domain Name"
-              type="text"
-              placeholder="example.com"
-              value={newDomainName}
-              onChange={(e) => setNewDomainName(e.target.value)}
-              required
-            />
-
-            {error && (
-              <p className="text-sm text-red-600">{error}</p>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting}
-                className="flex-1"
-              >
-                {isSubmitting ? 'Adding...' : 'Add Domain'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsAddModalOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 space-y-2">
-      <Select
-        options={domains.map((d) => ({
-          value: d.id,
-          label: d.name,
-        }))}
-        value={activeDomain?.id || ''}
-        onChange={(e) => handleDomainChange(e.target.value)}
-      />
-
-      <Button
-        variant="ghost"
-        onClick={() => setIsAddModalOpen(true)}
-        className="w-full text-sm"
-      >
-        + Add Domain
-      </Button>
-
-      <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Add Domain"
-      >
-        <form onSubmit={handleAddDomain} className="space-y-4">
+        <form onSubmit={handleAddDomain} className="space-y-3">
           <Input
             label="Domain Name"
             type="text"
@@ -129,26 +63,29 @@ export function DomainSwitcher() {
             <p className="text-sm text-red-600">{error}</p>
           )}
 
-          <div className="flex gap-2">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {isSubmitting ? 'Adding...' : 'Add Domain'}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsAddModalOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting ? 'Registering...' : 'Register Domain'}
+          </Button>
         </form>
-      </Modal>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4">
+      <Select
+        options={domains.map((d) => ({
+          value: d.id,
+          label: d.name,
+        }))}
+        value={activeDomain?.id || ''}
+        onChange={(e) => handleDomainChange(e.target.value)}
+      />
     </div>
   );
 }
