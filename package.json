@@ -1,8 +1,27 @@
 {
   "name": "bausmail",
   "version": "0.1.0",
-  "description": "A simple web-based email client for managing Resend-powered domains",
-  "private": true,
+  "description": "Self-hosted Resend email client for indie devs and founders managing multiple app domains.",
+  "private": false,
+  "license": "MIT",
+  "author": "Evan Bausbacher",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evanbausbacher/baus-mail.git"
+  },
+  "bugs": {
+    "url": "https://github.com/evanbausbacher/baus-mail/issues"
+  },
+  "homepage": "https://github.com/evanbausbacher/baus-mail#readme",
+  "keywords": [
+    "email",
+    "resend",
+    "nextjs",
+    "self-hosted",
+    "indie-hackers",
+    "founders",
+    "mailbox"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",

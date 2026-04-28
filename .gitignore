@@ -29,6 +29,9 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# Local agent/worktree state
+.claude/
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
@@ -42,5 +45,3 @@ next-env.d.ts
 venv/
 __pycache__/
 *.py[cod]
-
-.vercel
