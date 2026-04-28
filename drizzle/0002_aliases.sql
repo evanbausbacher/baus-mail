@@ -1,1 +1,0 @@
-ALTER TABLE "domains" ADD COLUMN "aliases" text;

@@ -20,7 +20,6 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: unknown) {
-    // eslint-disable-next-line no-console
     console.error('UI crashed:', error);
   }
 
@@ -47,4 +46,3 @@ export class ErrorBoundary extends React.Component<
     );
   }
 }
-

@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { render } from '@react-email/render';
 import { getTemplate, type TemplateId } from '@/lib/email-templates';
 import { z } from 'zod';
+import { createElement } from 'react';
 
 const previewSchema = z.object({
   templateId: z.enum(['plain', 'marketing', 'transactional', 'reply']),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  props: z.record(z.any()).optional(),
+  props: z.record(z.unknown()).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const Component = def.Component;
     const merged = { ...def.defaultProps, ...(props ?? {}) };
 
-    const html = await render(<Component {...merged} />, { pretty: false });
+    const html = await render(createElement(Component, merged), { pretty: false });
 
     return new NextResponse(html, {
       status: 200,

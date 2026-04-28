@@ -10,8 +10,7 @@ interface DomainContextType {
   error: string | null;
   setActiveDomain: (domain: Domain) => void;
   refreshDomains: () => Promise<void>;
-  addDomain: (name: string, apiKey: string, aliases?: string[]) => Promise<Domain>;
-  updateDomain: (id: string, updates: { name?: string; apiKey?: string; isActive?: boolean; aliases?: string[] }) => Promise<void>;
+  updateDomain: (id: string, updates: { name?: string; isActive?: boolean }) => Promise<void>;
   deleteDomain: (id: string) => Promise<void>;
 }
 
@@ -23,7 +22,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch domains from API
   const refreshDomains = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -35,6 +33,9 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
+      if (data.configError) {
+        setError(data.configError);
+      }
       setDomains(data.domains);
 
       setActiveDomainState((prev) => {
@@ -50,28 +51,9 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Add a new domain
-  const addDomain = useCallback(async (name: string, apiKey: string, aliases?: string[]): Promise<Domain> => {
-    const response = await fetch('/api/domains', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, apiKey, ...(aliases ? { aliases } : {}) }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to add domain');
-    }
-
-    const data = await response.json();
-    await refreshDomains();
-    return data.domain;
-  }, [refreshDomains]);
-
-  // Update a domain
   const updateDomain = useCallback(async (
     id: string,
-    updates: { name?: string; apiKey?: string; isActive?: boolean; aliases?: string[] }
+    updates: { name?: string; isActive?: boolean }
   ) => {
     const response = await fetch(`/api/domains/${id}`, {
       method: 'PUT',
@@ -87,7 +69,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     await refreshDomains();
   }, [refreshDomains]);
 
-  // Delete a domain
   const deleteDomain = useCallback(async (id: string) => {
     const response = await fetch(`/api/domains/${id}`, {
       method: 'DELETE',
@@ -101,12 +82,10 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     await refreshDomains();
   }, [refreshDomains]);
 
-  // Set active domain
   const setActiveDomain = useCallback((domain: Domain) => {
     setActiveDomainState(domain);
   }, []);
 
-  // Initial load
   useEffect(() => {
     refreshDomains();
   }, [refreshDomains]);
@@ -118,7 +97,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     error,
     setActiveDomain,
     refreshDomains,
-    addDomain,
     updateDomain,
     deleteDomain,
   };
@@ -130,7 +108,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Custom hook to use the domain context
 export function useDomains() {
   const context = useContext(DomainContext);
   if (context === undefined) {

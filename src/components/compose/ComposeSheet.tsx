@@ -50,7 +50,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
   const { activeDomain } = useDomains();
   const { refreshEmails, setCurrentView } = useEmails();
 
-  const aliases = useMemo(() => activeDomain?.aliases ?? [], [activeDomain]);
+  const defaultFrom = activeDomain ? `no-reply@${activeDomain.name}` : '';
 
   const initialFromTemplate: TemplateId =
     initial.mode === 'reply' ? 'reply' : 'plain';
@@ -58,7 +58,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
   const [tab, setTab] = useState<'compose' | 'preview'>('compose');
   const [templateId, setTemplateId] = useState<TemplateId>(initialFromTemplate);
   const [from, setFrom] = useState<string>(
-    initial.from ?? aliases[0] ?? (activeDomain ? `no-reply@${activeDomain.name}` : '')
+    initial.from ?? defaultFrom
   );
   const [to, setTo] = useState((initial.to ?? []).join(', '));
   const [cc, setCc] = useState((initial.cc ?? []).join(', '));
@@ -79,7 +79,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
     const startTemplate: TemplateId = initial.mode === 'reply' ? 'reply' : 'plain';
     setTemplateId(startTemplate);
     setTab('compose');
-    setFrom(initial.from ?? aliases[0] ?? (activeDomain ? `no-reply@${activeDomain.name}` : ''));
+    setFrom(initial.from ?? defaultFrom);
     setTo((initial.to ?? []).join(', '));
     setCc((initial.cc ?? []).join(', '));
     setBcc((initial.bcc ?? []).join(', '));
@@ -108,7 +108,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
     }
     setTemplateProps(seeded);
     setError(null);
-  }, [initial, isOpen, aliases, activeDomain]);
+  }, [initial, isOpen, defaultFrom]);
 
   // When user switches templates, seed missing fields from defaults so the preview is meaningful.
   useEffect(() => {
@@ -232,7 +232,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
         {tab === 'compose' ? (
           <div className="space-y-4">
             <SendAsPicker
-              aliases={aliases}
+              aliases={[]}
               value={from}
               onChange={setFrom}
               domainFallback={activeDomain?.name}

@@ -10,7 +10,6 @@ import { EmailList } from '@/components/email/EmailList';
 import { EmailDetail } from '@/components/email/EmailDetail';
 import { ComposeSheet } from '@/components/compose/ComposeSheet';
 import { SettingsSheet } from '@/components/settings/SettingsSheet';
-import { AddDomainSheet } from '@/components/settings/AddDomainSheet';
 import { useDomains } from '@/hooks/useDomains';
 import { useEmails } from '@/components/providers/EmailProvider';
 
@@ -29,7 +28,6 @@ export function AppShell() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [addDomainOpen, setAddDomainOpen] = useState(false);
 
   const handleSync = useCallback(async () => {
     if (!activeDomain) {
@@ -78,9 +76,7 @@ export function AppShell() {
           {!activeDomain ? (
             <EmptyState
               title="Welcome to BausMail"
-              body="Add your first Resend mailbox to start sending and receiving."
-              actionLabel="Add mailbox"
-              onAction={() => setAddDomainOpen(true)}
+              body="Configure RESEND_DOMAIN_API_KEYS on the server to start sending and receiving."
             />
           ) : detailOpen && selectedEmail ? (
             <EmailDetail email={selectedEmail} />
@@ -95,7 +91,6 @@ export function AppShell() {
           isOpen={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           onOpenSettings={() => setSettingsOpen(true)}
-          onAddDomain={() => setAddDomainOpen(true)}
         />
       </div>
 
@@ -134,12 +129,7 @@ export function AppShell() {
       <SettingsSheet
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        onAddDomain={() => {
-          setSettingsOpen(false);
-          setAddDomainOpen(true);
-        }}
       />
-      <AddDomainSheet isOpen={addDomainOpen} onClose={() => setAddDomainOpen(false)} />
     </div>
   );
 }
@@ -147,25 +137,14 @@ export function AppShell() {
 function EmptyState({
   title,
   body,
-  actionLabel,
-  onAction,
 }: {
   title: string;
   body: string;
-  actionLabel: string;
-  onAction: () => void;
 }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center px-6 py-10">
       <div className="text-lg font-semibold text-ink">{title}</div>
       <div className="text-sm text-ink-muted mt-2 max-w-xs">{body}</div>
-      <button
-        type="button"
-        onClick={onAction}
-        className="mt-6 px-5 py-2.5 rounded-xl bg-accent text-white font-medium hover:bg-accent-hover"
-      >
-        {actionLabel}
-      </button>
     </div>
   );
 }
