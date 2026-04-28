@@ -45,7 +45,6 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
   const newDomain = {
     id: crypto.randomUUID(),
     name: input.name,
-    apiKey: input.apiKey,
     createdAt: new Date(),
     isActive: true,
     lastSyncedAt: null,
@@ -54,7 +53,6 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
   await db.insert(domains).values({
     id: newDomain.id,
     name: newDomain.name,
-    apiKey: newDomain.apiKey,
     createdAt: newDomain.createdAt,
     isActive: true,
     lastSyncedAt: null,
@@ -67,7 +65,6 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
   const updates: Record<string, unknown> = {};
 
   if (input.name !== undefined) updates.name = input.name;
-  if (input.apiKey !== undefined) updates.apiKey = input.apiKey;
   if (input.isActive !== undefined) updates.isActive = input.isActive;
 
   if (Object.keys(updates).length === 0) {
@@ -441,7 +438,6 @@ function mapDomainFromDb(row: DomainRow): Domain {
   return {
     id: row.id,
     name: row.name,
-    apiKey: row.apiKey,
     createdAt: toDate(row.createdAt),
     isActive: Boolean(row.isActive),
     lastSyncedAt: row.lastSyncedAt ? toDate(row.lastSyncedAt) : null,

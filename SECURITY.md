@@ -19,7 +19,7 @@ Email the maintainer or use GitHub private vulnerability reporting if it is enab
 
 BausMail `v0.1.0` is designed for trusted, self-hosted, single-tenant deployments.
 
-Resend API keys are stored in the database as plaintext. Anyone with database access can read them. Use least-privilege infrastructure access, strong Postgres credentials, encrypted backups, and scoped Resend keys where possible.
+Resend API keys are read from the server-only `RESEND_DOMAIN_API_KEYS` environment variable and are not stored in the database. Anyone with access to production environment variables can read them. Use least-privilege infrastructure access, strong Postgres credentials, encrypted backups, and scoped Resend keys where possible.
 
 Required production settings:
 
@@ -27,4 +27,5 @@ Required production settings:
 - Set `AUTH_ALLOWED_EMAILS` to the exact admin email addresses allowed to sign in.
 - Set `AUTH_ADMIN_PASSWORD` to a strong password.
 - Set `RESEND_WEBHOOK_SECRET` from the Resend webhook dashboard.
+- Set `RESEND_DOMAIN_API_KEYS` to a JSON map of domain names to Resend API keys.
 - Keep `/api/webhooks/resend` signature verification enabled.

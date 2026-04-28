@@ -11,7 +11,6 @@ export function DomainSwitcher() {
   const { domains, activeDomain, setActiveDomain, addDomain } = useDomains();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newDomainName, setNewDomainName] = useState('');
-  const [newDomainApiKey, setNewDomainApiKey] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,10 +27,9 @@ export function DomainSwitcher() {
     setIsSubmitting(true);
 
     try {
-      await addDomain(newDomainName, newDomainApiKey);
+      await addDomain(newDomainName);
       setIsAddModalOpen(false);
       setNewDomainName('');
-      setNewDomainApiKey('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add domain');
     } finally {
@@ -62,15 +60,6 @@ export function DomainSwitcher() {
               placeholder="example.com"
               value={newDomainName}
               onChange={(e) => setNewDomainName(e.target.value)}
-              required
-            />
-
-            <Input
-              label="Resend API Key"
-              type="password"
-              placeholder="re_xxxxxxxxxxxxx"
-              value={newDomainApiKey}
-              onChange={(e) => setNewDomainApiKey(e.target.value)}
               required
             />
 
@@ -133,15 +122,6 @@ export function DomainSwitcher() {
             placeholder="example.com"
             value={newDomainName}
             onChange={(e) => setNewDomainName(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Resend API Key"
-            type="password"
-            placeholder="re_xxxxxxxxxxxxx"
-            value={newDomainApiKey}
-            onChange={(e) => setNewDomainApiKey(e.target.value)}
             required
           />
 

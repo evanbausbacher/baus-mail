@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateDomainSchema } from '@/lib/utils/validation';
 import { getDomainById, updateDomain, deleteDomain } from '@/lib/db/queries';
-import { ResendClient } from '@/lib/resend/client';
 
 // GET /api/domains/[id] - Get a specific domain
 export async function GET(
@@ -48,19 +47,6 @@ export async function PUT(
     const existing = await getDomainById(params.id);
     if (!existing) {
       return NextResponse.json({ error: 'Domain not found' }, { status: 404 });
-    }
-
-    // If updating API key, validate it
-    if (updates.apiKey) {
-      const client = new ResendClient(updates.apiKey);
-      const isValid = await client.validateApiKey();
-
-      if (!isValid) {
-        return NextResponse.json(
-          { error: 'Invalid Resend API key' },
-          { status: 400 }
-        );
-      }
     }
 
     // Update domain

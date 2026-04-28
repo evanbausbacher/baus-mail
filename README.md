@@ -72,6 +72,7 @@ AUTH_ALLOWED_EMAILS=you@example.com
 AUTH_ADMIN_PASSWORD=replace-with-a-strong-password
 
 RESEND_WEBHOOK_SECRET=whsec_...
+RESEND_DOMAIN_API_KEYS='{"example.com":"re_xxx","another-app.com":"re_yyy"}'
 
 NEXT_PUBLIC_POLLING_INTERVAL=30000
 ```
@@ -83,20 +84,22 @@ Notes:
 - `AUTH_ADMIN_PASSWORD` is the shared password for allowed admin emails.
 - `AUTH_SECRET` is required by Auth.js in production.
 - `RESEND_WEBHOOK_SECRET` must match the signing secret from the Resend webhook dashboard.
+- `RESEND_DOMAIN_API_KEYS` is a server-only JSON object that maps each domain name to its Resend API key. Domain names are matched case-insensitively.
 
 ## Resend Setup
 
 1. Verify each sending/receiving domain in Resend.
-2. Start BausMail and sign in with an allowed admin email.
-3. Add a domain from the sidebar and paste a Resend API key for that domain.
-4. In Resend, create an inbound webhook endpoint that points to:
+2. Add each domain and API key to `RESEND_DOMAIN_API_KEYS`.
+3. Start BausMail and sign in with an allowed admin email.
+4. Add a configured domain from the sidebar.
+5. In Resend, create an inbound webhook endpoint that points to:
 
 ```text
 https://your-app.example.com/api/webhooks/resend
 ```
 
-5. Subscribe the endpoint to received-email events and copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
-6. Use the sync button in BausMail to backfill or refresh mail when needed.
+6. Subscribe the endpoint to received-email events and copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
+7. Use the sync button in BausMail to backfill or refresh mail when needed.
 
 For local webhook testing, expose your dev server with a tunnel and set the webhook URL to the public tunnel URL plus `/api/webhooks/resend`.
 
@@ -118,11 +121,13 @@ npm run start
 
 Make sure production environment variables are set in your hosting provider before the first migration.
 
+When upgrading from a database that previously stored Resend API keys, configure `RESEND_DOMAIN_API_KEYS` before running migrations. The migration removes the stored `domains.api_key` column.
+
 ## Security Notes
 
 BausMail `v0.1.0` is intended for trusted, self-hosted, single-tenant deployments.
 
-Important: Resend API keys are currently stored in the application database as plaintext so the app can sync and send mail per domain. Anyone with database access can read those keys. Use a locked-down database, least-privilege hosting access, and domain-scoped API keys where possible.
+Resend API keys are not stored in the application database. They are read at runtime from the server-only `RESEND_DOMAIN_API_KEYS` environment variable. Keep hosting environment access restricted and use domain-scoped API keys where possible.
 
 The Resend webhook route verifies Svix signatures with `RESEND_WEBHOOK_SECRET`. Do not disable that check in production.
 
