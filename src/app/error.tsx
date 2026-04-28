@@ -17,9 +17,9 @@ export default function ErrorPage({
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-8">
-      <div className="max-w-xl w-full bg-white border border-gray-200 p-6 space-y-3">
-        <div className="text-xl font-bold text-gray-900">Something went wrong</div>
-        <div className="text-sm text-gray-700 whitespace-pre-wrap">
+      <div className="max-w-xl w-full bg-surface rounded-2xl border border-line shadow-ios p-6 space-y-3">
+        <div className="text-xl font-semibold text-ink">Something went wrong</div>
+        <div className="text-sm text-ink-muted whitespace-pre-wrap">
           {error.message}
         </div>
         <div className="flex items-center gap-2 pt-2">

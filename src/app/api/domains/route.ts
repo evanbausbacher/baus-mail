@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, apiKey } = validation.data;
+    const { name, apiKey, aliases } = validation.data;
 
     // Check if domain already exists
     const existing = await getDomainByName(name);
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create domain
-    const domain = await createDomain({ name, apiKey });
+    const domain = await createDomain({ name, apiKey, aliases });
 
     return NextResponse.json({ domain }, { status: 201 });
   } catch (error) {

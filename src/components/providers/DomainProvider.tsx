@@ -10,8 +10,8 @@ interface DomainContextType {
   error: string | null;
   setActiveDomain: (domain: Domain) => void;
   refreshDomains: () => Promise<void>;
-  addDomain: (name: string, apiKey: string) => Promise<Domain>;
-  updateDomain: (id: string, updates: { name?: string; apiKey?: string; isActive?: boolean }) => Promise<void>;
+  addDomain: (name: string, apiKey: string, aliases?: string[]) => Promise<Domain>;
+  updateDomain: (id: string, updates: { name?: string; apiKey?: string; isActive?: boolean; aliases?: string[] }) => Promise<void>;
   deleteDomain: (id: string) => Promise<void>;
 }
 
@@ -51,11 +51,11 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Add a new domain
-  const addDomain = useCallback(async (name: string, apiKey: string): Promise<Domain> => {
+  const addDomain = useCallback(async (name: string, apiKey: string, aliases?: string[]): Promise<Domain> => {
     const response = await fetch('/api/domains', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, apiKey }),
+      body: JSON.stringify({ name, apiKey, ...(aliases ? { aliases } : {}) }),
     });
 
     if (!response.ok) {
@@ -71,7 +71,7 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   // Update a domain
   const updateDomain = useCallback(async (
     id: string,
-    updates: { name?: string; apiKey?: string; isActive?: boolean }
+    updates: { name?: string; apiKey?: string; isActive?: boolean; aliases?: string[] }
   ) => {
     const response = await fetch(`/api/domains/${id}`, {
       method: 'PUT',

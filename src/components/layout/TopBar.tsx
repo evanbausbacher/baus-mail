@@ -42,10 +42,10 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
   const viewTitle = currentView.charAt(0).toUpperCase() + currentView.slice(1);
 
   return (
-    <div className="border-b border-gray-200 bg-white">
+    <div className="border-b border-line bg-surface">
       <div className="px-6 py-4">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">{viewTitle}</h1>
+          <h1 className="text-2xl font-semibold text-ink">{viewTitle}</h1>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -62,7 +62,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
         </div>
 
         {syncMessage && (
-          <div className="mb-4 px-4 py-2 bg-gray-50 border border-gray-200 text-sm">
+          <div className="mb-4 px-4 py-2 rounded-xl bg-background border border-line text-sm text-ink">
             {syncMessage}
           </div>
         )}
@@ -82,7 +82,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
 
           {selectedEmails.size > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-ink-muted">
                 {selectedEmails.size} selected
               </span>
               <Button
@@ -123,7 +123,7 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
                 disabled={isActing}
                 tooltip="Unstar"
               >
-                <Star className="w-4 h-4 text-gray-400" />
+                <Star className="w-4 h-4 text-ink-subtle" />
               </Button>
               <Button
                 variant="ghost"
