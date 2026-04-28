@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import { useDomains } from '@/hooks/useDomains';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { usePolling } from '@/hooks/usePolling';
@@ -17,8 +17,13 @@ const PollingContext = createContext<PollingContextType | undefined>(undefined);
 export function PollingProvider({ children }: { children: React.ReactNode }) {
   const { activeDomain } = useDomains();
   const { refreshEmails, compose } = useEmails();
+  const activeDomainIdRef = useRef<string | null>(activeDomain?.id ?? null);
 
   const enabled = Boolean(activeDomain) && !compose.isOpen;
+
+  useEffect(() => {
+    activeDomainIdRef.current = activeDomain?.id ?? null;
+  }, [activeDomain?.id]);
 
   const poll = async () => {
     if (!activeDomain) return;
@@ -43,7 +48,9 @@ export function PollingProvider({ children }: { children: React.ReactNode }) {
       throw new Error(text || 'Auto-sync sent failed');
     }
 
-    await refreshEmails();
+    if (activeDomainIdRef.current === activeDomain.id) {
+      await refreshEmails(activeDomain.id);
+    }
   };
 
   const { isPolling, lastPolledAt, error, pollNow } = usePolling({ enabled, poll });
@@ -61,4 +68,3 @@ export function usePollingContext() {
   if (!ctx) throw new Error('usePollingContext must be used within PollingProvider');
   return ctx;
 }
-

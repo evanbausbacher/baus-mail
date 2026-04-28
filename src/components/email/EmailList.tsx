@@ -76,10 +76,13 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
     startY.current = null;
     if (!wasPulling) return;
     if (pullY >= PULL_TRIGGER) {
+      const domainId = activeDomain?.id;
+      if (!domainId) return;
+
       setRefreshing(true);
       setPullY(60);
       try {
-        await refreshEmails();
+        await refreshEmails(domainId);
       } finally {
         setRefreshing(false);
         setPullY(0);

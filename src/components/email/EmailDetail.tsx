@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'isomorphic-dompurify';
 import type { Email } from '@/types/email';
 import { formatFullDate } from '@/lib/utils/date-helpers';
@@ -96,6 +96,12 @@ export function EmailDetail({ email }: { email: Email }) {
     setDx(0);
   };
 
+  const closeDetail = useCallback(() => {
+    setOpenSide(null);
+    setDx(0);
+    setSelectedEmail(null);
+  }, [setSelectedEmail]);
+
   const onPointerUp = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') return;
     const wasDragging = draggingRef.current;
@@ -187,9 +193,9 @@ export function EmailDetail({ email }: { email: Email }) {
       <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur border-b border-line px-2 lg:px-3 py-2 flex items-center gap-1 lg:gap-2 pt-safe">
         <button
           type="button"
-          onClick={() => setSelectedEmail(null)}
+          onClick={closeDetail}
           aria-label="Back"
-          className="lg:hidden h-10 shrink-0 inline-flex items-center gap-0.5 rounded-full pl-1 pr-2 text-accent hover:bg-accent/10"
+          className="lg:hidden h-10 shrink-0 inline-flex items-center gap-1 rounded-full pl-2 pr-3 text-accent hover:bg-accent/10"
         >
           <ChevronLeft className="w-5 h-5" />
           <span className="text-[15px] font-medium">Inbox</span>

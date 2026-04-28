@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { MobileTopBar } from '@/components/layout/MobileTopBar';
@@ -21,16 +21,22 @@ export function AppShell() {
     loadEmails,
     refreshEmails,
     selectedEmail,
+    setSelectedEmail,
     compose,
     openComposeNew,
     closeCompose,
     emails,
     isSelectionMode,
+    clearMailbox,
+    clearSelection,
+    setSelectionMode,
+    setSearchQuery,
   } = useEmails();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileUnreadOnly, setMobileUnreadOnly] = useState(false);
+  const lastActiveDomainId = useRef<string | null>(null);
 
   const handleSync = useCallback(async () => {
     if (!activeDomain) {
@@ -59,13 +65,31 @@ export function AppShell() {
       throw new Error(text || 'Failed to sync sent emails');
     }
 
-    await refreshEmails();
+    if (lastActiveDomainId.current === activeDomain.id) {
+      await refreshEmails(activeDomain.id);
+    }
   }, [activeDomain, refreshEmails]);
 
   useEffect(() => {
-    if (!activeDomain) return;
+    if (!activeDomain) {
+      if (lastActiveDomainId.current !== null) {
+        lastActiveDomainId.current = null;
+        clearMailbox();
+      }
+      return;
+    }
+
+    if (lastActiveDomainId.current !== activeDomain.id) {
+      lastActiveDomainId.current = activeDomain.id;
+      clearSelection();
+      setSelectionMode(false);
+      setSelectedEmail(null);
+      setSearchQuery('');
+      setMobileUnreadOnly(false);
+    }
+
     loadEmails(activeDomain.id, currentView);
-  }, [activeDomain, currentView, loadEmails]);
+  }, [activeDomain, currentView, loadEmails, clearMailbox, clearSelection, setSelectionMode, setSelectedEmail, setSearchQuery]);
 
   const detailOpen = Boolean(selectedEmail);
 

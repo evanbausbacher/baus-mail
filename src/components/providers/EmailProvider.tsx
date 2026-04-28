@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { Email } from '@/types/email';
 import type { ComposeDraft } from '@/lib/compose/draft';
 import { buildDraftFromEmail } from '@/lib/compose/draft';
@@ -18,7 +18,7 @@ interface EmailContextType {
   compose: { isOpen: boolean; draft: ComposeDraft };
   searchQuery: string;
   setCurrentView: (view: EmailView) => void;
-  setSelectedEmail: (email: Email | null) => void;
+  setSelectedEmail: React.Dispatch<React.SetStateAction<Email | null>>;
   setSearchQuery: (query: string) => void;
   runSearch: (domainId: string, view: EmailView, query: string) => Promise<void>;
   openComposeNew: () => void;
@@ -32,7 +32,7 @@ interface EmailContextType {
   selectAllEmails: (emailIds?: string[]) => void;
   clearSelection: () => void;
   clearMailbox: () => void;
-  refreshEmails: () => Promise<void>;
+  refreshEmails: (domainId?: string) => Promise<void>;
 }
 
 const EmailContext = createContext<EmailContextType | undefined>(undefined);
@@ -51,6 +51,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     draft: { mode: 'new' },
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const requestSeq = useRef(0);
 
   const hydrateEmail = useCallback((raw: unknown): Email => {
     const base = raw as unknown as Omit<Email, 'createdAt' | 'syncedAt'> & {
@@ -72,6 +73,9 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadEmails = useCallback(async (domainId: string, view: EmailView) => {
+    const requestId = ++requestSeq.current;
+    const isCurrentRequest = () => requestSeq.current === requestId;
+
     setIsLoading(true);
     setError(null);
     setCurrentDomainId(domainId);
@@ -128,17 +132,20 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
 
       filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
+      if (!isCurrentRequest()) return;
+
       setEmails(filtered);
       setSelectedEmail((prev) => {
         if (!prev) return prev;
-        return filtered.find((e) => e.id === prev.id) ?? null;
+        return filtered.find((e) => e.id === prev.id && e.domainId === domainId) ?? null;
       });
     } catch (err) {
+      if (!isCurrentRequest()) return;
       setError(err instanceof Error ? err.message : 'Failed to load emails');
       setEmails([]);
       setSelectedEmail(null);
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest()) setIsLoading(false);
     }
   }, [hydrateEmail]);
 
@@ -149,6 +156,9 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
         await loadEmails(domainId, view);
         return;
       }
+
+      const requestId = ++requestSeq.current;
+      const isCurrentRequest = () => requestSeq.current === requestId;
 
       setIsLoading(true);
       setError(null);
@@ -187,25 +197,29 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
         if (view === 'sent') filtered = filtered.filter((e) => e.type === 'sent' && !e.isDeleted);
 
         filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        if (!isCurrentRequest()) return;
         setEmails(filtered);
-        setSelectedEmail((prev) => (prev ? filtered.find((e) => e.id === prev.id) ?? null : prev));
+        setSelectedEmail((prev) => (prev ? filtered.find((e) => e.id === prev.id && e.domainId === domainId) ?? null : prev));
       } catch (err) {
+        if (!isCurrentRequest()) return;
         setError(err instanceof Error ? err.message : 'Failed to search');
         setEmails([]);
         setSelectedEmail(null);
       } finally {
-        setIsLoading(false);
+        if (isCurrentRequest()) setIsLoading(false);
       }
     },
     [hydrateEmail, loadEmails]
   );
 
-  const refreshEmails = useCallback(async () => {
-    if (currentDomainId) {
+  const refreshEmails = useCallback(async (domainId?: string) => {
+    const targetDomainId = domainId ?? currentDomainId;
+
+    if (targetDomainId) {
       if (searchQuery.trim()) {
-        await runSearch(currentDomainId, currentView, searchQuery);
+        await runSearch(targetDomainId, currentView, searchQuery);
       } else {
-        await loadEmails(currentDomainId, currentView);
+        await loadEmails(targetDomainId, currentView);
       }
     }
   }, [currentDomainId, currentView, loadEmails, runSearch, searchQuery]);
@@ -236,6 +250,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearMailbox = useCallback(() => {
+    requestSeq.current += 1;
     setEmails([]);
     setSelectedEmails(new Set());
     setIsSelectionMode(false);

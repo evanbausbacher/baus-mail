@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEmails } from '@/components/providers/EmailProvider';
+import { useDomains } from '@/hooks/useDomains';
 import type { Email } from '@/types/email';
 import type { EmailActionInput } from '@/lib/utils/validation';
 
@@ -45,24 +46,35 @@ async function fetchEmailById(email: Email): Promise<Email> {
 
 export function useEmailActions() {
   const { refreshEmails, selectedEmail, setSelectedEmail, clearSelection } = useEmails();
+  const { activeDomain } = useDomains();
+  const activeDomainId = activeDomain?.id ?? null;
+  const activeDomainIdRef = useRef<string | null>(activeDomainId);
   const [isActing, setIsActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    activeDomainIdRef.current = activeDomainId;
+  }, [activeDomainId]);
 
   const act = useCallback(
     async (emailIds: string[], action: Action, opts?: { clearSelection?: boolean; folderId?: string }) => {
       setIsActing(true);
       setError(null);
       try {
+        const selectedAtStart = selectedEmail;
+        const actionDomainId = activeDomainId;
         await postAction(emailIds, action, opts?.folderId);
-        await refreshEmails();
+        if (actionDomainId && activeDomainIdRef.current === actionDomainId) {
+          await refreshEmails(actionDomainId);
+        }
 
-        if (selectedEmail && emailIds.includes(selectedEmail.id)) {
+        if (selectedAtStart && emailIds.includes(selectedAtStart.id)) {
           try {
-            const refreshed = await fetchEmailById(selectedEmail);
-            setSelectedEmail(refreshed);
+            const refreshed = await fetchEmailById(selectedAtStart);
+            setSelectedEmail((current) => (current?.id === selectedAtStart.id ? refreshed : current));
           } catch {
             // If it no longer belongs in the current filtered view, clear it.
-            setSelectedEmail(null);
+            setSelectedEmail((current) => (current?.id === selectedAtStart.id ? null : current));
           }
         }
 
@@ -74,7 +86,7 @@ export function useEmailActions() {
         setIsActing(false);
       }
     },
-    [refreshEmails, selectedEmail, setSelectedEmail, clearSelection]
+    [activeDomainId, refreshEmails, selectedEmail, setSelectedEmail, clearSelection]
   );
 
   const toggleStar = useCallback(

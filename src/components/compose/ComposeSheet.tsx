@@ -193,7 +193,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
         throw new Error(data?.details || data?.error || 'Failed to send email');
       }
 
-      await refreshEmails();
+      await refreshEmails(activeDomain.id);
       setCurrentView('sent');
       onClose();
     } catch (e) {
