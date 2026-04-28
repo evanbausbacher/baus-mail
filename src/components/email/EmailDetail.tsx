@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'isomorphic-dompurify';
 import type { Email } from '@/types/email';
 import { formatFullDate } from '@/lib/utils/date-helpers';
-import { formatEmailAddress, getEmailPreview, parseEmailAddress } from '@/lib/utils/email-helpers';
+import { formatEmailAddress, getEmailPreview, parseEmailAddress, splitReplyContent, stripHtml } from '@/lib/utils/email-helpers';
 import { AttachmentsList } from '@/components/email/AttachmentsList';
 import { EmailThread } from '@/components/email/EmailThread';
 import { EmailActions } from '@/components/email/EmailActions';
@@ -56,7 +56,13 @@ export function EmailDetail({ email }: { email: Email }) {
     return getEmailPreview(email.text ?? null, email.html ?? null, 50000);
   }, [email.text, email.html]);
 
+  const replyParts = useMemo(() => {
+    const source = email.text?.trim() ? email.text : stripHtml(email.html ?? '');
+    return splitReplyContent(source);
+  }, [email.text, email.html]);
+
   const canShowHtml = Boolean(sanitizedHtml);
+  const hasQuotedHistory = Boolean(replyParts.quotedHeader || replyParts.quotedBody);
   const fromParsed = parseEmailAddress(email.from);
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -259,7 +265,27 @@ export function EmailDetail({ email }: { email: Email }) {
 
           {/* Body */}
           <div className="lg:rounded-2xl lg:border lg:border-line bg-surface overflow-hidden -mx-1 lg:mx-0">
-            {mode === 'html' && sanitizedHtml ? (
+            {hasQuotedHistory ? (
+              <div className="px-1 py-2 lg:p-5 text-[15px] leading-6 text-ink">
+                <pre className="whitespace-pre-wrap font-sans">
+                  {replyParts.body || 'No content'}
+                </pre>
+                <details className="group mt-4 rounded-xl border border-line bg-line/20">
+                  <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink">
+                    <span className="group-open:hidden">Show quoted history</span>
+                    <span className="hidden group-open:inline">Hide quoted history</span>
+                  </summary>
+                  <div className="border-t border-line px-3 py-3">
+                    {replyParts.quotedHeader ? (
+                      <div className="mb-2 text-xs font-medium text-ink-subtle">{replyParts.quotedHeader}</div>
+                    ) : null}
+                    <pre className="whitespace-pre-wrap border-l-2 border-line pl-3 font-sans text-sm leading-6 text-ink-muted">
+                      {replyParts.quotedBody || '(No quoted content)'}
+                    </pre>
+                  </div>
+                </details>
+              </div>
+            ) : mode === 'html' && sanitizedHtml ? (
               <div className="email-html px-1 py-2 lg:p-5" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
             ) : (
               <pre className="whitespace-pre-wrap font-sans px-1 py-2 lg:p-5 text-[15px] leading-6 text-ink">

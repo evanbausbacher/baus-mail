@@ -84,17 +84,17 @@ export function EmailThread() {
     if (!selectedEmail) return null;
     if (isLoading) return <div className="text-xs text-ink-subtle">Loading thread…</div>;
     if (error) return <div className="text-xs text-red-700">{error}</div>;
-    if (!threadEmails || threadEmails.length <= 1) return <div className="text-xs text-ink-subtle">No thread messages found.</div>;
+    if (!threadEmails || threadEmails.length <= 1) return null;
 
     return (
       <div className="rounded-2xl border border-line bg-surface overflow-hidden">
         <div className="px-4 py-2 border-b border-line text-sm font-semibold text-ink">
-          Thread ({threadEmails.length})
+          Conversation ({threadEmails.length})
         </div>
         <div className="divide-y divide-line">
           {threadEmails.map((email) => {
             const isActive = selectedEmail.id === email.id;
-            const preview = getEmailPreview(email.text ?? null, email.html ?? null, 120);
+            const preview = getEmailPreview(email.text ?? null, email.html ?? null, 220);
             const who = email.type === 'sent' ? `To: ${email.to?.[0] ? formatEmailAddress(email.to[0]) : '(none)'}` : formatEmailAddress(email.from);
 
             return (
@@ -108,9 +108,16 @@ export function EmailThread() {
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className={clsx('text-sm truncate', isActive ? 'text-accent font-medium' : 'text-ink')}>{who}</div>
-                    <div className="text-xs text-ink-subtle truncate mt-1">{preview}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className={clsx('text-sm truncate', isActive ? 'text-accent font-medium' : 'text-ink')}>{who}</div>
+                      {isActive ? (
+                        <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                          Open
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-ink-subtle">{preview}</div>
                   </div>
                   <div className="text-xs text-ink-subtle whitespace-nowrap">{formatDate(email.createdAt)}</div>
                 </div>
