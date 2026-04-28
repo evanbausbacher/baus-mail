@@ -14,16 +14,22 @@ import { useEmailActions } from '@/hooks/useEmailActions';
 import { Archive, ChevronLeft, Ellipsis, Forward as ForwardIcon, Mail, MailOpen, Reply as ReplyIcon, Star } from 'lucide-react';
 import clsx from 'clsx';
 
-const DETAIL_SWIPE_TRIGGER = 150;
-const DETAIL_SWIPE_REVEAL = 228;
+const DETAIL_SWIPE_TRIGGER = 76;
+const DETAIL_FULL_TRIGGER = 220;
+const DETAIL_SWIPE_REVEAL = 240;
+const DETAIL_READ_REVEAL = 92;
 
 export function EmailDetail({ email }: { email: Email }) {
   const [mode, setMode] = useState<'html' | 'text'>('html');
   const [dx, setDx] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [openSide, setOpenSide] = useState<'left' | 'right' | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
+  const startOffset = useRef(0);
   const draggingRef = useRef(false);
+  const hasDraggedRef = useRef(false);
   const { openComposeReply, openComposeReplyAll, openComposeForward, setSelectedEmail } = useEmails();
   const { act, archive, toggleRead, toggleStar } = useEmailActions();
 
@@ -55,9 +61,13 @@ export function EmailDetail({ email }: { email: Email }) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') return;
+    e.currentTarget.setPointerCapture(e.pointerId);
     startX.current = e.clientX;
     startY.current = e.clientY;
+    startOffset.current = openSide === 'left' ? -DETAIL_SWIPE_REVEAL : openSide === 'right' ? DETAIL_READ_REVEAL : 0;
     draggingRef.current = false;
+    hasDraggedRef.current = false;
+    setIsDragging(true);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -65,43 +75,91 @@ export function EmailDetail({ email }: { email: Email }) {
     const deltaX = e.clientX - startX.current;
     const deltaY = e.clientY - startY.current;
     if (!draggingRef.current) {
-      if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) draggingRef.current = true;
-      else return;
+      if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        draggingRef.current = true;
+        hasDraggedRef.current = true;
+      } else return;
     }
     e.preventDefault();
-    setDx(Math.max(-DETAIL_SWIPE_REVEAL, Math.min(DETAIL_SWIPE_REVEAL, deltaX)));
+    const raw = startOffset.current + deltaX;
+    setDx(Math.max(-DETAIL_SWIPE_REVEAL - 28, Math.min(DETAIL_READ_REVEAL + 28, raw)));
+  };
+
+  const closeSwipe = () => {
+    setOpenSide(null);
+    setDx(0);
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') return;
     const wasDragging = draggingRef.current;
     draggingRef.current = false;
+    setIsDragging(false);
     startX.current = null;
     startY.current = null;
     if (!wasDragging) {
-      setDx(0);
       return;
     }
-    if (dx <= -DETAIL_SWIPE_TRIGGER) setMoreOpen(true);
-    if (dx >= DETAIL_SWIPE_TRIGGER) toggleRead(email);
-    setDx(0);
+    if (dx <= -DETAIL_FULL_TRIGGER) {
+      closeSwipe();
+      setMoreOpen(true);
+    } else if (dx <= -DETAIL_SWIPE_TRIGGER) {
+      setOpenSide('left');
+      setDx(-DETAIL_SWIPE_REVEAL);
+    } else if (dx >= DETAIL_SWIPE_TRIGGER) {
+      setOpenSide('right');
+      setDx(DETAIL_READ_REVEAL);
+    } else {
+      closeSwipe();
+    }
   };
 
   return (
     <div className="relative flex flex-col h-full min-h-0 overflow-hidden">
-      <div className="absolute inset-y-0 left-0 flex items-center pl-6 bg-blue-500 text-white">
-        {email.isRead ? <Mail className="w-5 h-5" /> : <MailOpen className="w-5 h-5" />}
+      <div className="absolute inset-y-0 left-0 flex items-center bg-blue-500 text-white">
+        <button
+          type="button"
+          onClick={() => {
+            toggleRead(email);
+            closeSwipe();
+          }}
+          className="h-full w-[92px] pl-3 pr-4 flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
+          {email.isRead ? <Mail className="w-5 h-5" /> : <MailOpen className="w-5 h-5" />}
+          {email.isRead ? 'Unread' : 'Read'}
+        </button>
       </div>
       <div className="absolute inset-y-0 right-0 flex items-stretch justify-end">
-        <div className="w-20 px-3 bg-slate-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+        <button
+          type="button"
+          onClick={() => {
+            setMoreOpen(true);
+            closeSwipe();
+          }}
+          className="w-20 px-3 bg-slate-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
           <Ellipsis className="w-4 h-4" />More
-        </div>
-        <div className="w-20 px-3 bg-yellow-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            toggleStar(email);
+            closeSwipe();
+          }}
+          className="w-20 px-3 bg-yellow-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
           <Star className="w-4 h-4" fill="currentColor" />Flag
-        </div>
-        <div className="w-20 px-3 bg-green-600 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            archive(email);
+            closeSwipe();
+          }}
+          className="w-20 px-3 bg-green-600 text-white flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
           <Archive className="w-4 h-4" />Archive
-        </div>
+        </button>
       </div>
       <div
         className="relative z-10 flex flex-col h-full min-h-0 bg-surface"
@@ -111,8 +169,12 @@ export function EmailDetail({ email }: { email: Email }) {
         onPointerCancel={onPointerUp}
         style={{
           transform: `translate3d(${dx}px, 0, 0)`,
-          transition: dx === 0 ? 'transform 180ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+          transition: isDragging ? 'none' : 'transform 260ms cubic-bezier(0.32, 0.72, 0, 1)',
           touchAction: 'pan-y',
+        }}
+        onClick={() => {
+          if (hasDraggedRef.current) return;
+          if (openSide) closeSwipe();
         }}
       >
       {/* Sticky header (mobile back button + actions) */}

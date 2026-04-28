@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Ellipsis, Mail, MailOpen, Reply, Star } from 'lucide-react';
 import type { Email } from '@/types/email';
@@ -16,9 +16,11 @@ interface EmailListItemProps {
   email: Email;
 }
 
-const SWIPE_THRESHOLD = 64;
-const SWIPE_TRIGGER = 150;
-const SWIPE_REVEAL = 228;
+const SWIPE_THRESHOLD = 42;
+const SWIPE_TRIGGER = 76;
+const SWIPE_FULL_TRIGGER = 220;
+const SWIPE_REVEAL = 240;
+const READ_REVEAL = 88;
 
 export function EmailListItem({ email }: EmailListItemProps) {
   const {
@@ -54,24 +56,24 @@ export function EmailListItem({ email }: EmailListItemProps) {
   // ---- Swipe handling (touch / pointer) ----
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
+  const startOffset = useRef(0);
   const [dx, setDx] = useState(0);
-  const [committing, setCommitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [openSide, setOpenSide] = useState<'left' | 'right' | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const draggingRef = useRef(false);
-  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-    };
-  }, []);
+  const hasDraggedRef = useRef(false);
 
   const onPointerDown = (e: React.PointerEvent) => {
     // Only respond to touch / pen swipes; mouse uses click only.
     if (e.pointerType === 'mouse') return;
+    e.currentTarget.setPointerCapture(e.pointerId);
     startX.current = e.clientX;
     startY.current = e.clientY;
+    startOffset.current = openSide === 'left' ? -SWIPE_REVEAL : openSide === 'right' ? READ_REVEAL : 0;
     draggingRef.current = false;
+    hasDraggedRef.current = false;
+    setIsDragging(true);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -82,46 +84,44 @@ export function EmailListItem({ email }: EmailListItemProps) {
     if (!draggingRef.current) {
       if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
         draggingRef.current = true;
+        hasDraggedRef.current = true;
       } else {
         return;
       }
     }
     e.preventDefault();
-    setDx(deltaX);
+    const raw = startOffset.current + deltaX;
+    const clamped = Math.max(-SWIPE_REVEAL - 28, Math.min(READ_REVEAL + 28, raw));
+    setDx(clamped);
   };
 
-  const finish = (commit: 'read' | 'more' | null) => {
-    if (!commit) {
-      setDx(0);
-      return;
-    }
-    setCommitting(true);
-    // Snap to side, then run action
-    const target = commit === 'more' ? -SWIPE_REVEAL : SWIPE_REVEAL;
-    setDx(target);
-    if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-    commitTimerRef.current = setTimeout(() => {
-      if (commit === 'read') toggleRead(email);
-      else setMoreOpen(true);
-      setCommitting(false);
-      setDx(0);
-      commitTimerRef.current = null;
-    }, 180);
+  const closeSwipe = () => {
+    setOpenSide(null);
+    setDx(0);
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') return;
     const wasDragging = draggingRef.current;
     draggingRef.current = false;
+    setIsDragging(false);
     startX.current = null;
     startY.current = null;
     if (!wasDragging) {
-      setDx(0);
       return;
     }
-    if (dx <= -SWIPE_TRIGGER) finish('more');
-    else if (dx >= SWIPE_TRIGGER) finish('read');
-    else setDx(0);
+    if (dx <= -SWIPE_FULL_TRIGGER) {
+      closeSwipe();
+      setMoreOpen(true);
+    } else if (dx <= -SWIPE_TRIGGER) {
+      setOpenSide('left');
+      setDx(-SWIPE_REVEAL);
+    } else if (dx >= SWIPE_TRIGGER) {
+      setOpenSide('right');
+      setDx(READ_REVEAL);
+    } else {
+      closeSwipe();
+    }
   };
 
   // Background visuals based on swipe direction
@@ -137,26 +137,55 @@ export function EmailListItem({ email }: EmailListItemProps) {
           'bg-blue-500 text-white',
           showReadBg ? 'opacity-100' : 'opacity-0'
         )}
-        aria-hidden
       >
-        {email.isRead ? <Mail className="w-5 h-5" /> : <MailOpen className="w-5 h-5" />}
+        <button
+          type="button"
+          onClick={() => {
+            toggleRead(email);
+            closeSwipe();
+          }}
+          className="h-full w-[88px] pl-3 pr-4 flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
+          {email.isRead ? <Mail className="w-5 h-5" /> : <MailOpen className="w-5 h-5" />}
+          {email.isRead ? 'Unread' : 'Read'}
+        </button>
       </div>
       <div
         className={clsx(
           'absolute inset-y-0 right-0 flex items-stretch justify-end transition-opacity',
           showLeftBg ? 'opacity-100' : 'opacity-0'
         )}
-        aria-hidden
       >
-        <div className="w-20 px-3 bg-slate-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+        <button
+          type="button"
+          onClick={() => {
+            setMoreOpen(true);
+            closeSwipe();
+          }}
+          className="w-20 px-3 bg-slate-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
           <Ellipsis className="w-4 h-4" />More
-        </div>
-        <div className="w-20 px-3 bg-yellow-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            toggleStar(email);
+            closeSwipe();
+          }}
+          className="w-20 px-3 bg-yellow-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
           <Star className="w-4 h-4" fill="currentColor" />Flag
-        </div>
-        <div className="w-20 px-3 bg-blue-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            openComposeReply(email);
+            closeSwipe();
+          }}
+          className="w-20 px-3 bg-blue-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]"
+        >
           <Reply className="w-4 h-4" />Reply
-        </div>
+        </button>
       </div>
 
       <div
@@ -166,7 +195,7 @@ export function EmailListItem({ email }: EmailListItemProps) {
         onPointerCancel={onPointerUp}
         style={{
           transform: `translate3d(${dx}px, 0, 0)`,
-          transition: committing || dx === 0 ? 'transform 180ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+          transition: isDragging ? 'none' : 'transform 260ms cubic-bezier(0.32, 0.72, 0, 1)',
           touchAction: 'pan-y',
         }}
         className={clsx(
@@ -175,6 +204,11 @@ export function EmailListItem({ email }: EmailListItemProps) {
           isActive ? 'bg-line/30' : 'hover:bg-line/20'
         )}
         onClick={() => {
+          if (hasDraggedRef.current) return;
+          if (openSide) {
+            closeSwipe();
+            return;
+          }
           if (isSelectionMode) toggleEmailSelection(email.id);
           else setSelectedEmail(email);
         }}

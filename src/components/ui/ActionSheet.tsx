@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 
 interface ActionSheetProps {
@@ -11,6 +12,12 @@ interface ActionSheetProps {
 }
 
 export function ActionSheet({ isOpen, title, onClose, children }: ActionSheetProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
     const previous = document.body.style.overflow;
@@ -20,19 +27,20 @@ export function ActionSheet({ isOpen, title, onClose, children }: ActionSheetPro
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 lg:flex lg:items-center lg:justify-center" role="dialog" aria-modal="true">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/35" />
+  return createPortal(
+    <div className="fixed inset-0 z-[100] lg:flex lg:items-center lg:justify-center" role="dialog" aria-modal="true">
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/35 backdrop-blur-[1px]" />
       <div
         className={clsx(
-          'absolute inset-x-0 bottom-0 bg-surface shadow-sheet pb-safe',
-          'rounded-t-2xl overflow-hidden lg:relative lg:inset-auto lg:w-full lg:max-w-sm lg:rounded-2xl'
+          'absolute inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+12px)] bg-surface shadow-sheet',
+          'max-h-[min(70dvh,440px)] overflow-y-auto rounded-2xl',
+          'lg:relative lg:inset-auto lg:w-full lg:max-w-sm'
         )}
       >
         {title && (
-          <div className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-ink-subtle border-b border-line">
+          <div className="sticky top-0 bg-surface px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-ink-subtle border-b border-line">
             {title}
           </div>
         )}
@@ -47,7 +55,8 @@ export function ActionSheet({ isOpen, title, onClose, children }: ActionSheetPro
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
