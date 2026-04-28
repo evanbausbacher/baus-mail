@@ -29,7 +29,7 @@ interface EmailContextType {
   loadEmails: (domainId: string, view: EmailView) => Promise<void>;
   toggleEmailSelection: (emailId: string) => void;
   setSelectionMode: (enabled: boolean) => void;
-  selectAllEmails: () => void;
+  selectAllEmails: (emailIds?: string[]) => void;
   clearSelection: () => void;
   clearMailbox: () => void;
   refreshEmails: () => Promise<void>;
@@ -222,8 +222,8 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const selectAllEmails = useCallback(() => {
-    setSelectedEmails(new Set(emails.map(e => e.id)));
+  const selectAllEmails = useCallback((emailIds?: string[]) => {
+    setSelectedEmails(new Set(emailIds ?? emails.map(e => e.id)));
   }, [emails]);
 
   const clearSelection = useCallback(() => {

@@ -31,13 +31,21 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
   const [markOpen, setMarkOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
 
-  const allSelected = useMemo(() => {
-    return emails.length > 0 && selectedEmails.size === emails.length;
-  }, [emails.length, selectedEmails.size]);
-
   const visibleEmails = useMemo(() => {
     return unreadOnly ? emails.filter((email) => !email.isRead) : emails;
   }, [emails, unreadOnly]);
+
+  const visibleEmailIds = useMemo(() => {
+    return visibleEmails.map((email) => email.id);
+  }, [visibleEmails]);
+
+  const allSelected = useMemo(() => {
+    return visibleEmailIds.length > 0 && visibleEmailIds.every((id) => selectedEmails.has(id));
+  }, [selectedEmails, visibleEmailIds]);
+
+  const selectVisibleEmails = () => {
+    selectAllEmails(visibleEmailIds);
+  };
 
   // ---- Pull-to-refresh ----
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -117,7 +125,7 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
         <Checkbox
           checked={allSelected}
           onChange={(e) => {
-            if (e.target.checked) selectAllEmails();
+            if (e.target.checked) selectVisibleEmails();
             else clearSelection();
           }}
           label="Select all"
@@ -126,6 +134,21 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
           {visibleEmails.length} email{visibleEmails.length === 1 ? '' : 's'}
         </div>
       </div>
+
+      {isSelectionMode && visibleEmails.length > 0 && (
+        <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-2 backdrop-blur">
+          <div className="text-sm font-medium text-ink">
+            {selectedEmails.size} selected
+          </div>
+          <button
+            type="button"
+            onClick={allSelected ? clearSelection : selectVisibleEmails}
+            className="h-9 px-3 text-sm font-semibold text-accent"
+          >
+            {allSelected ? 'Deselect All' : 'Select All'}
+          </button>
+        </div>
+      )}
 
       <div
         style={{
