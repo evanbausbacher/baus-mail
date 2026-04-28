@@ -72,6 +72,14 @@ export async function getDomainByRecipientAddresses(recipients: string[]): Promi
   return allDomains.find((domain) => recipientDomains.has(domain.name.toLowerCase())) ?? null;
 }
 
+export async function getDomainBySenderAddress(sender: string): Promise<Domain | null> {
+  const senderDomain = extractEmailAddress(sender).split("@")[1]?.toLowerCase();
+  if (!senderDomain) return null;
+
+  const allDomains = await getAllDomains();
+  return allDomains.find((domain) => domain.name.toLowerCase() === senderDomain) ?? null;
+}
+
 export async function createDomain(input: CreateDomainInput): Promise<Domain> {
   const newDomain = {
     id: crypto.randomUUID(),
