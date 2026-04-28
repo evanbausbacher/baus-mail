@@ -4,10 +4,11 @@ import { getEmailById } from '@/lib/db/queries';
 // GET /api/emails/sent/[id] - Get a specific sent email
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const email = await getEmailById(params.id);
+    const { id } = await params;
+    const email = await getEmailById(id);
 
     if (!email) {
       return NextResponse.json({ error: 'Email not found' }, { status: 404 });

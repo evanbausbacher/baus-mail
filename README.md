@@ -23,8 +23,8 @@ BausMail is open source and currently at `v0.1.0`. It is useful today for truste
 
 ## Tech Stack
 
-- Next.js 14 App Router
-- React 18
+- Next.js 16 App Router
+- React 19
 - TypeScript
 - Tailwind CSS
 - Postgres
@@ -36,7 +36,7 @@ BausMail is open source and currently at `v0.1.0`. It is useful today for truste
 
 ### Prerequisites
 
-- Node.js 18 or newer
+- Node.js 20.9 or newer
 - npm
 - Postgres
 - A Resend account with at least one verified domain
@@ -72,7 +72,7 @@ AUTH_ALLOWED_EMAILS=you@example.com
 AUTH_ADMIN_PASSWORD=replace-with-a-strong-password
 
 RESEND_WEBHOOK_SECRET=whsec_...
-RESEND_DOMAIN_API_KEYS='{"example.com":"re_xxx","another-app.com":"re_yyy"}'
+RESEND_DOMAIN_API_KEYS='{"example.com":"<resend-api-key-for-example.com>","another-app.com":"<resend-api-key-for-another-app.com>"}'
 
 NEXT_PUBLIC_POLLING_INTERVAL=30000
 ```

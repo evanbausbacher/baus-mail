@@ -5,10 +5,11 @@ import { getDomainById, updateDomain, deleteDomain } from '@/lib/db/queries';
 // GET /api/domains/[id] - Get a specific domain
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const domain = await getDomainById(params.id);
+    const { id } = await params;
+    const domain = await getDomainById(id);
 
     if (!domain) {
       return NextResponse.json({ error: 'Domain not found' }, { status: 404 });
@@ -27,9 +28,10 @@ export async function GET(
 // PUT /api/domains/[id] - Update a domain
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
 
     // Validate input
@@ -44,13 +46,13 @@ export async function PUT(
     const updates = validation.data;
 
     // Check if domain exists
-    const existing = await getDomainById(params.id);
+    const existing = await getDomainById(id);
     if (!existing) {
       return NextResponse.json({ error: 'Domain not found' }, { status: 404 });
     }
 
     // Update domain
-    const domain = await updateDomain(params.id, updates);
+    const domain = await updateDomain(id, updates);
 
     if (!domain) {
       return NextResponse.json({ error: 'Domain not found' }, { status: 404 });
@@ -69,17 +71,18 @@ export async function PUT(
 // DELETE /api/domains/[id] - Delete a domain
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Check if domain exists
-    const existing = await getDomainById(params.id);
+    const existing = await getDomainById(id);
     if (!existing) {
       return NextResponse.json({ error: 'Domain not found' }, { status: 404 });
     }
 
     // Delete domain (cascade deletes emails and sync state)
-    await deleteDomain(params.id);
+    await deleteDomain(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
