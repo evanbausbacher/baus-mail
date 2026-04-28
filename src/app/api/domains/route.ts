@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { syncDomainsFromConfig } from '@/lib/db/queries';
 import { getConfiguredDomainNames, ResendApiKeyConfigError } from '@/lib/resend/api-keys';
 
-// GET /api/domains - List all domains
+// GET /api/domains - List all env-configured domains
 export async function GET() {
   try {
     const domains = await syncDomainsFromConfig(getConfiguredDomainNames());

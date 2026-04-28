@@ -1,17 +1,38 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ErrorBoundary } from '@/components/providers/ErrorBoundary';
 
-const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = {
-  title: 'BausMail - Resend Email Client',
-  description: 'A simple web-based email client for managing Resend-powered domains',
-  icons: {
-    icon: '/apple-touch-icon.png',
-    apple: '/apple-touch-icon.png',
+  title: 'BausMail',
+  description: 'Personal multi-domain email client powered by Resend.',
+  manifest: '/site.webmanifest',
+  applicationName: 'BausMail',
+  appleWebApp: {
+    capable: true,
+    title: 'BausMail',
+    statusBarStyle: 'default',
   },
+  icons: {
+    icon: [
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+    shortcut: '/favicon.ico',
+  },
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+  themeColor: '#F2F2F7',
 };
 
 export default function RootLayout({
@@ -21,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>

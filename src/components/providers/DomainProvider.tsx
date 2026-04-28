@@ -22,7 +22,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch domains from API
   const refreshDomains = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -52,7 +51,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Update a domain
   const updateDomain = useCallback(async (
     id: string,
     updates: { name?: string; isActive?: boolean }
@@ -71,7 +69,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     await refreshDomains();
   }, [refreshDomains]);
 
-  // Delete a domain
   const deleteDomain = useCallback(async (id: string) => {
     const response = await fetch(`/api/domains/${id}`, {
       method: 'DELETE',
@@ -85,12 +82,10 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     await refreshDomains();
   }, [refreshDomains]);
 
-  // Set active domain
   const setActiveDomain = useCallback((domain: Domain) => {
     setActiveDomainState(domain);
   }, []);
 
-  // Initial load
   useEffect(() => {
     refreshDomains();
   }, [refreshDomains]);
@@ -113,7 +108,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Custom hook to use the domain context
 export function useDomains() {
   const context = useContext(DomainContext);
   if (context === undefined) {

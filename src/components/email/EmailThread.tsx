@@ -82,16 +82,16 @@ export function EmailThread() {
 
   const content = useMemo(() => {
     if (!selectedEmail) return null;
-    if (isLoading) return <div className="text-xs text-gray-500">Loading thread…</div>;
+    if (isLoading) return <div className="text-xs text-ink-subtle">Loading thread…</div>;
     if (error) return <div className="text-xs text-red-700">{error}</div>;
-    if (!threadEmails || threadEmails.length <= 1) return <div className="text-xs text-gray-500">No thread messages found.</div>;
+    if (!threadEmails || threadEmails.length <= 1) return <div className="text-xs text-ink-subtle">No thread messages found.</div>;
 
     return (
-      <div className="border border-gray-200 bg-white">
-        <div className="px-4 py-2 border-b border-gray-200 text-sm font-semibold text-gray-900">
+      <div className="rounded-2xl border border-line bg-surface overflow-hidden">
+        <div className="px-4 py-2 border-b border-line text-sm font-semibold text-ink">
           Thread ({threadEmails.length})
         </div>
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-line">
           {threadEmails.map((email) => {
             const isActive = selectedEmail.id === email.id;
             const preview = getEmailPreview(email.text ?? null, email.html ?? null, 120);
@@ -103,16 +103,16 @@ export function EmailThread() {
                 type="button"
                 onClick={() => setSelectedEmail(email)}
                 className={clsx(
-                  'w-full text-left px-4 py-3 hover:bg-gray-50',
-                  isActive && 'bg-gray-100'
+                  'w-full text-left px-4 py-3 hover:bg-line/30',
+                  isActive && 'bg-accent/10'
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm text-gray-900 truncate">{who}</div>
-                    <div className="text-xs text-gray-500 truncate mt-1">{preview}</div>
+                    <div className={clsx('text-sm truncate', isActive ? 'text-accent font-medium' : 'text-ink')}>{who}</div>
+                    <div className="text-xs text-ink-subtle truncate mt-1">{preview}</div>
                   </div>
-                  <div className="text-xs text-gray-500 whitespace-nowrap">{formatDate(email.createdAt)}</div>
+                  <div className="text-xs text-ink-subtle whitespace-nowrap">{formatDate(email.createdAt)}</div>
                 </div>
               </button>
             );
