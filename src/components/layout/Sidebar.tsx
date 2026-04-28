@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { DomainSwitcher } from './DomainSwitcher';
 import { Inbox, Send, Star, AlertOctagon, Trash2, PenSquare } from 'lucide-react';
 import clsx from 'clsx';
+import { APP_VERSION } from '@/lib/version';
 
 interface SidebarProps {
   activeView?: 'inbox' | 'sent' | 'starred' | 'spam' | 'trash';
@@ -74,7 +75,7 @@ export function Sidebar({ activeView = 'inbox', onViewChange, onCompose }: Sideb
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 text-xs text-gray-500">
-        <p>BausMail v0.1.0</p>
+        <p>BausMail v{APP_VERSION}</p>
         <p>Open Source Email Client</p>
       </div>
     </div>

@@ -24,6 +24,6 @@ if (process.env.NODE_ENV !== 'production') {
   globalForDb.bausMailPool = pool;
 }
 
-export const db = drizzle(pool, { schema });
+export const db = drizzle({ client: pool, schema });
 
 export type Database = typeof db;

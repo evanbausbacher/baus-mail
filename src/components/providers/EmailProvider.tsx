@@ -28,6 +28,7 @@ interface EmailContextType {
   toggleEmailSelection: (emailId: string) => void;
   selectAllEmails: () => void;
   clearSelection: () => void;
+  clearMailbox: () => void;
   refreshEmails: () => Promise<void>;
 }
 
@@ -209,6 +210,15 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     setSelectedEmails(new Set());
   }, []);
 
+  const clearMailbox = useCallback(() => {
+    setEmails([]);
+    setSelectedEmails(new Set());
+    setSelectedEmail(null);
+    setCurrentDomainId(null);
+    setError(null);
+    setIsLoading(false);
+  }, []);
+
   useEffect(() => {
     // Clear selection when view changes
     clearSelection();
@@ -253,6 +263,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     toggleEmailSelection,
     selectAllEmails,
     clearSelection,
+    clearMailbox,
     refreshEmails,
   };
 

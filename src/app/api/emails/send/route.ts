@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmailSchema } from '@/lib/utils/validation';
 import { getDomainById, upsertEmailRemote } from '@/lib/db/queries';
-import { ResendClient } from '@/lib/resend/client';
+import { getResendClientForDomain } from '@/lib/resend/api-keys';
 import type { Email } from '@/types/email';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Domain not found' }, { status: 404 });
     }
 
-    const client = new ResendClient(domain.apiKey);
+    const client = getResendClientForDomain(domain);
 
     const result = await client.sendEmail({
       from: input.from,

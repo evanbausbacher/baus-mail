@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDomainById, updateDomainLastSynced, getEmailContentState, getSyncState, updateSyncState, upsertEmailRemotes } from "@/lib/db/queries";
 import { syncSentEmails } from "@/lib/resend/client";
+import { getResendApiKeyForDomain } from "@/lib/resend/api-keys";
 
 // POST /api/emails/sent/sync - Sync sent emails from Resend
 export async function POST(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Sync emails from Resend
     const { emails, nextCursor, hasMore } = await syncSentEmails(
-      domain.apiKey,
+      getResendApiKeyForDomain(domain.name),
       domainId,
       latestKnownId,
       getEmailContentState
