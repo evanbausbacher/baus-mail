@@ -17,6 +17,37 @@ export async function getAllDomains(): Promise<Domain[]> {
   return result.map(mapDomainFromDb);
 }
 
+export async function syncDomainsFromConfig(domainNames: string[]): Promise<Domain[]> {
+  const configuredNames = new Set(domainNames.map((name) => name.trim().toLowerCase()).filter(Boolean));
+
+  await db.transaction(async (tx) => {
+    const existingDomains = await tx.select().from(domains);
+
+    for (const domain of existingDomains) {
+      if (!configuredNames.has(domain.name.toLowerCase())) {
+        await tx.delete(emails).where(eq(emails.domainId, domain.id));
+        await tx.delete(syncState).where(eq(syncState.domainId, domain.id));
+        await tx.delete(domains).where(eq(domains.id, domain.id));
+      }
+    }
+
+    for (const name of configuredNames) {
+      const exists = existingDomains.some((domain) => domain.name.toLowerCase() === name);
+      if (!exists) {
+        await tx.insert(domains).values({
+          id: crypto.randomUUID(),
+          name,
+          createdAt: new Date(),
+          isActive: true,
+          lastSyncedAt: null,
+        });
+      }
+    }
+  });
+
+  return getAllDomains();
+}
+
 export async function getDomainById(id: string): Promise<Domain | null> {
   const result = await db.select().from(domains).where(eq(domains.id, id)).limit(1);
   return result.length > 0 ? mapDomainFromDb(result[0]) : null;
@@ -76,7 +107,12 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
 }
 
 export async function deleteDomain(id: string): Promise<boolean> {
-  await db.delete(domains).where(eq(domains.id, id));
+  await db.transaction(async (tx) => {
+    await tx.delete(emails).where(eq(emails.domainId, id));
+    await tx.delete(syncState).where(eq(syncState.domainId, id));
+    await tx.delete(domains).where(eq(domains.id, id));
+  });
+
   return true;
 }
 

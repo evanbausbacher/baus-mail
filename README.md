@@ -91,15 +91,14 @@ Notes:
 1. Verify each sending/receiving domain in Resend.
 2. Add each domain and API key to `RESEND_DOMAIN_API_KEYS`.
 3. Start BausMail and sign in with an allowed admin email.
-4. Add a configured domain from the sidebar.
-5. In Resend, create an inbound webhook endpoint that points to:
+4. In Resend, create an inbound webhook endpoint that points to:
 
 ```text
 https://your-app.example.com/api/webhooks/resend
 ```
 
-6. Subscribe the endpoint to received-email events and copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
-7. Use the sync button in BausMail to backfill or refresh mail when needed.
+5. Subscribe the endpoint to received-email events and copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
+6. Use the sync button in BausMail to backfill or refresh mail when needed.
 
 For local webhook testing, expose your dev server with a tunnel and set the webhook URL to the public tunnel URL plus `/api/webhooks/resend`.
 

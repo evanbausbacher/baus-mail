@@ -23,6 +23,7 @@
     "mailbox"
   ],
   "scripts": {
+    "predev": "npm run db:migrate",
     "dev": "next dev",
     "prebuild": "npm run version:sync",
     "build": "next build",
