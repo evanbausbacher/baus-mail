@@ -10,7 +10,6 @@ interface DomainContextType {
   error: string | null;
   setActiveDomain: (domain: Domain) => void;
   refreshDomains: () => Promise<void>;
-  addDomain: (name: string) => Promise<Domain>;
   updateDomain: (id: string, updates: { name?: string; isActive?: boolean }) => Promise<void>;
   deleteDomain: (id: string) => Promise<void>;
 }
@@ -35,6 +34,9 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
+      if (data.configError) {
+        setError(data.configError);
+      }
       setDomains(data.domains);
 
       setActiveDomainState((prev) => {
@@ -49,24 +51,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
-
-  // Add a new domain
-  const addDomain = useCallback(async (name: string): Promise<Domain> => {
-    const response = await fetch('/api/domains', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to add domain');
-    }
-
-    const data = await response.json();
-    await refreshDomains();
-    return data.domain;
-  }, [refreshDomains]);
 
   // Update a domain
   const updateDomain = useCallback(async (
@@ -118,7 +102,6 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     error,
     setActiveDomain,
     refreshDomains,
-    addDomain,
     updateDomain,
     deleteDomain,
   };

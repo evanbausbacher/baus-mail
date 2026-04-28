@@ -42,6 +42,10 @@ function parseDomainApiKeys() {
   return map;
 }
 
+export function getConfiguredDomainNames() {
+  return Array.from(parseDomainApiKeys().keys()).sort((a, b) => a.localeCompare(b));
+}
+
 export function getResendApiKeyForDomain(domainName: string) {
   const normalized = normalizeDomain(domainName);
   const apiKey = parseDomainApiKeys().get(normalized);
