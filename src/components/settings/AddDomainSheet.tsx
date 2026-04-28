@@ -98,7 +98,7 @@ export function AddDomainSheet({ isOpen, onClose }: AddDomainSheetProps) {
             Send-as addresses (optional)
           </label>
           <p className="text-xs text-ink-subtle mb-2">
-            Add the addresses you'll send from. The first one becomes the default.
+            Add the addresses you&apos;ll send from. The first one becomes the default.
           </p>
           <div className="flex gap-2">
             <Input
