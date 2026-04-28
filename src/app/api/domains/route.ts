@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createDomainSchema } from '@/lib/utils/validation';
 import { getAllDomains, createDomain, getDomainByName } from '@/lib/db/queries';
-import { ResendClient } from '@/lib/resend/client';
+import { getResendClientForDomain, ResendApiKeyConfigError } from '@/lib/resend/api-keys';
 
 // GET /api/domains - List all domains
 export async function GET() {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, apiKey } = validation.data;
+    const { name } = validation.data;
 
     // Check if domain already exists
     const existing = await getDomainByName(name);
@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate API key by attempting to connect to Resend
-    const client = new ResendClient(apiKey);
+    // Validate the env-configured API key by attempting to connect to Resend.
+    const client = getResendClientForDomain({ name });
     const isValid = await client.validateApiKey();
 
     if (!isValid) {
@@ -54,10 +54,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Create domain
-    const domain = await createDomain({ name, apiKey });
+    const domain = await createDomain({ name });
 
     return NextResponse.json({ domain }, { status: 201 });
   } catch (error) {
+    if (error instanceof ResendApiKeyConfigError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
+
     console.error('Error creating domain:', error);
     return NextResponse.json(
       { error: 'Failed to create domain' },

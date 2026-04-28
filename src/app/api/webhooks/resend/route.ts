@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Webhook } from 'svix';
 import { getDomainByRecipientAddresses, updateDomainLastSynced, updateSyncState, upsertEmailRemote } from '@/lib/db/queries';
 import { mapResendReceivedEmailToEmail, ResendClient } from '@/lib/resend/client';
+import { getResendApiKeyForDomain } from '@/lib/resend/api-keys';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ignored: true });
     }
 
-    const client = new ResendClient(domain.apiKey);
+    const client = new ResendClient(getResendApiKeyForDomain(domain.name));
     const received = await client.getReceivedEmail(emailId);
     const email = mapResendReceivedEmailToEmail(received, domain.id);
 

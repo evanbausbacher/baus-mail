@@ -8,6 +8,13 @@
       "when": 1777320546501,
       "tag": "0001_mighty_krista_starr",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777384324291,
+      "tag": "0002_drop_domain_api_key",
+      "breakpoints": true
     }
   ]
 }

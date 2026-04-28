@@ -1,6 +1,6 @@
 {
-  "id": "fe3f3760-b75c-4d00-89b6-570dffc98d7e",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "f2c45b84-2b5a-45bb-919f-6deb2f50473a",
+  "prevId": "fe3f3760-b75c-4d00-89b6-570dffc98d7e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -16,12 +16,6 @@
         },
         "name": {
           "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "api_key": {
-          "name": "api_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true
