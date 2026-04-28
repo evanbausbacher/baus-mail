@@ -3,10 +3,11 @@
 import React from 'react';
 import Image from 'next/image';
 import { DomainSwitcher } from './DomainSwitcher';
-import { Inbox, Send, Star, AlertOctagon, Trash2, PenSquare, Settings } from 'lucide-react';
+import { Archive, Folder, Inbox, Send, Star, AlertOctagon, Trash2, PenSquare, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import type { EmailView } from '@/components/providers/EmailProvider';
 import { APP_VERSION } from '@/lib/version';
+import { useFolders } from '@/hooks/useFolders';
 
 interface SidebarProps {
   activeView?: EmailView;
@@ -16,16 +17,18 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView = 'inbox', onViewChange, onCompose, onOpenSettings }: SidebarProps) {
+  const { folders } = useFolders();
   const navItems: Array<{ id: EmailView; label: string; Icon: typeof Inbox }> = [
     { id: 'inbox', label: 'Inbox', Icon: Inbox },
     { id: 'sent', label: 'Sent', Icon: Send },
     { id: 'starred', label: 'Starred', Icon: Star },
+    { id: 'archive', label: 'Archive', Icon: Archive },
     { id: 'spam', label: 'Spam', Icon: AlertOctagon },
     { id: 'trash', label: 'Trash', Icon: Trash2 },
   ];
 
   return (
-    <div className="w-[260px] bg-surface border-r border-line flex flex-col h-screen">
+    <div className="w-[260px] bg-surface border border-line rounded-2xl flex flex-col h-full shadow-ios overflow-hidden">
       <div className="p-4 border-b border-line">
         <div className="flex items-center gap-3">
           <Image src="/apple-touch-icon.png" alt="BausMail" width={32} height={32} className="rounded-lg" />
@@ -72,6 +75,36 @@ export function Sidebar({ activeView = 'inbox', onViewChange, onCompose, onOpenS
             );
           })}
         </ul>
+        {folders.length > 0 && (
+          <>
+            <div className="px-3 pt-5 pb-1 text-[11px] uppercase tracking-wide text-ink-subtle font-medium">
+              Folders
+            </div>
+            <ul className="space-y-1">
+              {folders.map((folder) => {
+                const id = `folder:${folder.id}` as EmailView;
+                const active = activeView === id;
+                return (
+                  <li key={folder.id}>
+                    <button
+                      type="button"
+                      onClick={() => onViewChange?.(id)}
+                      className={clsx(
+                        'w-full px-3 py-2 rounded-xl text-left flex items-center gap-3 transition-colors',
+                        active ? 'bg-accent/10 text-accent' : 'text-ink hover:bg-line/40'
+                      )}
+                    >
+                      <Folder size={18} className={active ? 'text-accent' : 'text-ink-muted'} />
+                      <span className={clsx('text-sm truncate', active ? 'font-semibold' : 'font-medium')}>
+                        {folder.name}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-line px-2 py-2">

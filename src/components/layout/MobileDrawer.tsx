@@ -6,6 +6,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   Inbox,
+  Archive,
+  Folder,
   Send,
   Star,
   AlertOctagon,
@@ -18,6 +20,7 @@ import { useEmails, type EmailView } from '@/components/providers/EmailProvider'
 import { useDomains } from '@/hooks/useDomains';
 import type { Domain } from '@/types/domain';
 import { getInitials } from '@/lib/utils/avatar';
+import { useFolders } from '@/hooks/useFolders';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -29,6 +32,7 @@ const FOLDERS: Array<{ id: EmailView; label: string; Icon: typeof Inbox }> = [
   { id: 'inbox', label: 'Inbox', Icon: Inbox },
   { id: 'sent', label: 'Sent', Icon: Send },
   { id: 'starred', label: 'Starred', Icon: Star },
+  { id: 'archive', label: 'Archive', Icon: Archive },
   { id: 'spam', label: 'Spam', Icon: AlertOctagon },
   { id: 'trash', label: 'Trash', Icon: Trash2 },
 ];
@@ -36,6 +40,7 @@ const FOLDERS: Array<{ id: EmailView; label: string; Icon: typeof Inbox }> = [
 export function MobileDrawer({ isOpen, onClose, onOpenSettings }: MobileDrawerProps) {
   const { currentView, setCurrentView } = useEmails();
   const { domains, activeDomain, setActiveDomain } = useDomains();
+  const { folders } = useFolders();
 
   useEffect(() => {
     if (isOpen) {
@@ -158,6 +163,36 @@ export function MobileDrawer({ isOpen, onClose, onOpenSettings }: MobileDrawerPr
               );
             })}
           </ul>
+          {folders.length > 0 && (
+            <>
+              <div className="px-3 pt-5 pb-1 text-[11px] uppercase tracking-wide text-ink-subtle font-medium">
+                Custom
+              </div>
+              <ul className="px-1 space-y-0.5">
+                {folders.map((folder) => {
+                  const id = `folder:${folder.id}` as EmailView;
+                  const active = currentView === id;
+                  return (
+                    <li key={folder.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleFolder(id)}
+                        className={clsx(
+                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left',
+                          active ? 'bg-accent/10 text-accent' : 'text-ink hover:bg-line/40'
+                        )}
+                      >
+                        <Folder className={clsx('w-5 h-5', active ? 'text-accent' : 'text-ink-muted')} />
+                        <span className={clsx('text-sm truncate', active ? 'font-semibold' : 'font-medium')}>
+                          {folder.name}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
         </div>
 
         {/* Footer actions */}

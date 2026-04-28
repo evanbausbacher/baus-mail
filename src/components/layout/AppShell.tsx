@@ -95,7 +95,7 @@ export function AppShell() {
       </div>
 
       {/* ============ Desktop (≥ lg) ============ */}
-      <div className="hidden lg:flex h-screen">
+      <div className="hidden lg:flex h-screen bg-background p-3 gap-3">
         <Sidebar
           activeView={currentView}
           onViewChange={setCurrentView}
@@ -103,7 +103,7 @@ export function AppShell() {
           onOpenSettings={() => setSettingsOpen(true)}
         />
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 rounded-2xl border border-line bg-surface overflow-hidden shadow-ios">
           <TopBar onSync={handleSync} onCompose={openComposeNew} />
 
           <div className="flex flex-1 min-h-0">

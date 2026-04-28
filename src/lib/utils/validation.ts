@@ -27,7 +27,29 @@ export const sendEmailSchema = z.object({
 
 export const emailActionSchema = z.object({
   emailIds: z.array(z.string()).min(1),
-  action: z.enum(['delete', 'star', 'unstar', 'markRead', 'markUnread', 'spam', 'notSpam']),
+  action: z.enum([
+    'delete',
+    'star',
+    'unstar',
+    'markRead',
+    'markUnread',
+    'spam',
+    'notSpam',
+    'archive',
+    'unarchive',
+    'moveToFolder',
+    'moveToInbox',
+  ]),
+  folderId: z.string().uuid().optional(),
+});
+
+export const createFolderSchema = z.object({
+  domainId: z.string().uuid(),
+  name: z.string().trim().min(1, 'Folder name is required').max(80),
+});
+
+export const updateFolderSchema = z.object({
+  name: z.string().trim().min(1, 'Folder name is required').max(80),
 });
 
 export const searchEmailsSchema = z.object({
@@ -49,3 +71,5 @@ export type UpdateDomainInput = z.infer<typeof updateDomainSchema>;
 export type SendEmailInput = z.infer<typeof sendEmailSchema>;
 export type EmailActionInput = z.infer<typeof emailActionSchema>;
 export type SearchEmailsInput = z.infer<typeof searchEmailsSchema>;
+export type CreateFolderInput = z.infer<typeof createFolderSchema>;
+export type UpdateFolderInput = z.infer<typeof updateFolderSchema>;

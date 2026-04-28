@@ -1,7 +1,7 @@
 import type { Email } from '@/types/email';
 import { parseEmailAddress } from '@/lib/utils/email-helpers';
 
-export type ComposeMode = 'new' | 'reply' | 'forward';
+export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward';
 
 export interface ComposeDraft {
   mode: ComposeMode;
@@ -44,17 +44,27 @@ function quoteBody(email: Email): string {
   return `${header}\n${quoted}\n`;
 }
 
-export function buildDraftFromEmail(mode: Exclude<ComposeMode, 'new'>, email: Email): ComposeDraft {
-  if (mode === 'reply') {
+export function buildDraftFromEmail(
+  mode: Exclude<ComposeMode, 'new'>,
+  email: Email,
+  currentAddress?: string
+): ComposeDraft {
+  if (mode === 'reply' || mode === 'replyAll') {
     const subject = prefixSubject('Re:', email.subject || '');
     const inReplyTo = email.messageId ?? null;
     const references = uniqEmails([email.references ?? '', email.messageId ?? ''].join(' ').split(/\s+/g))
       .filter(Boolean)
       .join(' ') || null;
+    const current = currentAddress ? parseEmailAddress(currentAddress).address.toLowerCase() : null;
+    const allRecipients = mode === 'replyAll'
+      ? [email.from, ...(email.to ?? []), ...(email.cc ?? [])]
+          .map((value) => parseEmailAddress(value).address)
+          .filter((value) => !current || value.toLowerCase() !== current)
+      : [parseEmailAddress(email.from).address];
 
     return {
       mode,
-      to: [parseEmailAddress(email.from).address],
+      to: uniqEmails(allRecipients),
       subject,
       text: `\n\n${quoteBody(email)}`,
       inReplyTo,

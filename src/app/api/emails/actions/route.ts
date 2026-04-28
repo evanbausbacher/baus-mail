@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { emailIds, action } = parsed.data;
+    const { emailIds, action, folderId } = parsed.data;
 
     if (action === 'delete') {
-      await updateEmailFlags(emailIds, { isDeleted: true });
+      await updateEmailFlags(emailIds, { isDeleted: true, isArchived: false, folderId: null });
     } else if (action === 'star') {
       await updateEmailFlags(emailIds, { isStarred: true });
     } else if (action === 'unstar') {
@@ -30,9 +30,35 @@ export async function POST(request: NextRequest) {
     } else if (action === 'markUnread') {
       await updateEmailFlags(emailIds, { isRead: false });
     } else if (action === 'spam') {
-      await updateEmailFlags(emailIds, { isSpam: true });
+      await updateEmailFlags(emailIds, { isSpam: true, isArchived: false, isDeleted: false, folderId: null });
     } else if (action === 'notSpam') {
       await updateEmailFlags(emailIds, { isSpam: false });
+    } else if (action === 'archive') {
+      await updateEmailFlags(emailIds, {
+        isArchived: true,
+        isSpam: false,
+        isDeleted: false,
+        folderId: null,
+      });
+    } else if (action === 'unarchive') {
+      await updateEmailFlags(emailIds, { isArchived: false });
+    } else if (action === 'moveToFolder') {
+      if (!folderId) {
+        return NextResponse.json({ error: 'Folder ID is required' }, { status: 400 });
+      }
+      await updateEmailFlags(emailIds, {
+        folderId,
+        isArchived: false,
+        isSpam: false,
+        isDeleted: false,
+      });
+    } else if (action === 'moveToInbox') {
+      await updateEmailFlags(emailIds, {
+        folderId: null,
+        isArchived: false,
+        isSpam: false,
+        isDeleted: false,
+      });
     } else {
       return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
     }
@@ -46,4 +72,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

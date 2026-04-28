@@ -5,11 +5,12 @@ import type { Email } from '@/types/email';
 import type { ComposeDraft } from '@/lib/compose/draft';
 import { buildDraftFromEmail } from '@/lib/compose/draft';
 
-export type EmailView = 'inbox' | 'sent' | 'starred' | 'spam' | 'trash';
+export type EmailView = 'inbox' | 'sent' | 'starred' | 'spam' | 'trash' | 'archive' | `folder:${string}`;
 
 interface EmailContextType {
   emails: Email[];
   selectedEmails: Set<string>;
+  isSelectionMode: boolean;
   isLoading: boolean;
   error: string | null;
   currentView: EmailView;
@@ -22,10 +23,12 @@ interface EmailContextType {
   runSearch: (domainId: string, view: EmailView, query: string) => Promise<void>;
   openComposeNew: () => void;
   openComposeReply: (email: Email) => void;
+  openComposeReplyAll: (email: Email) => void;
   openComposeForward: (email: Email) => void;
   closeCompose: () => void;
   loadEmails: (domainId: string, view: EmailView) => Promise<void>;
   toggleEmailSelection: (emailId: string) => void;
+  setSelectionMode: (enabled: boolean) => void;
   selectAllEmails: () => void;
   clearSelection: () => void;
   clearMailbox: () => void;
@@ -37,6 +40,7 @@ const EmailContext = createContext<EmailContextType | undefined>(undefined);
 export function EmailProvider({ children }: { children: React.ReactNode }) {
   const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<EmailView>('inbox');
@@ -95,9 +99,16 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
           fetchEmails('/api/emails/sent', view === 'trash' ? { includeDeleted: 'true' } : undefined),
         ]);
         fetched = [...received, ...sent];
+      } else if (view === 'archive' || view.startsWith('folder:')) {
+        const [received, sent] = await Promise.all([
+          fetchEmails('/api/emails/received'),
+          fetchEmails('/api/emails/sent'),
+        ]);
+        fetched = [...received, ...sent];
       }
 
       let filtered = fetched;
+      const folderId = view.startsWith('folder:') ? view.slice('folder:'.length) : null;
 
       if (view === 'starred') {
         filtered = filtered.filter((e) => e.isStarred && !e.isDeleted);
@@ -105,8 +116,12 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
         filtered = filtered.filter((e) => e.isSpam && !e.isDeleted);
       } else if (view === 'trash') {
         filtered = filtered.filter((e) => e.isDeleted);
+      } else if (view === 'archive') {
+        filtered = filtered.filter((e) => e.isArchived && !e.isDeleted && !e.isSpam);
+      } else if (folderId) {
+        filtered = filtered.filter((e) => e.folderId === folderId && !e.isDeleted && !e.isSpam && !e.isArchived);
       } else if (view === 'inbox') {
-        filtered = filtered.filter((e) => e.type === 'received' && !e.isDeleted && !e.isSpam);
+        filtered = filtered.filter((e) => e.type === 'received' && !e.isDeleted && !e.isSpam && !e.isArchived && !e.folderId);
       } else if (view === 'sent') {
         filtered = filtered.filter((e) => e.type === 'sent' && !e.isDeleted);
       }
@@ -163,7 +178,12 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
         if (view === 'starred') filtered = filtered.filter((e) => e.isStarred && !e.isDeleted);
         if (view === 'spam') filtered = filtered.filter((e) => e.isSpam && !e.isDeleted);
         if (view === 'trash') filtered = filtered.filter((e) => e.isDeleted);
-        if (view === 'inbox') filtered = filtered.filter((e) => e.type === 'received' && !e.isDeleted && !e.isSpam);
+        if (view === 'archive') filtered = filtered.filter((e) => e.isArchived && !e.isDeleted && !e.isSpam);
+        if (view.startsWith('folder:')) {
+          const folderId = view.slice('folder:'.length);
+          filtered = filtered.filter((e) => e.folderId === folderId && !e.isDeleted && !e.isSpam && !e.isArchived);
+        }
+        if (view === 'inbox') filtered = filtered.filter((e) => e.type === 'received' && !e.isDeleted && !e.isSpam && !e.isArchived && !e.folderId);
         if (view === 'sent') filtered = filtered.filter((e) => e.type === 'sent' && !e.isDeleted);
 
         filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -210,9 +230,15 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     setSelectedEmails(new Set());
   }, []);
 
+  const setSelectionMode = useCallback((enabled: boolean) => {
+    setIsSelectionMode(enabled);
+    if (!enabled) setSelectedEmails(new Set());
+  }, []);
+
   const clearMailbox = useCallback(() => {
     setEmails([]);
     setSelectedEmails(new Set());
+    setIsSelectionMode(false);
     setSelectedEmail(null);
     setCurrentDomainId(null);
     setError(null);
@@ -222,6 +248,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Clear selection when view changes
     clearSelection();
+    setIsSelectionMode(false);
     setSelectedEmail(null);
     setSearchQuery('');
   }, [currentView, clearSelection, setSelectedEmail]);
@@ -232,6 +259,10 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
 
   const openComposeReply = useCallback((email: Email) => {
     setCompose({ isOpen: true, draft: buildDraftFromEmail('reply', email) });
+  }, []);
+
+  const openComposeReplyAll = useCallback((email: Email) => {
+    setCompose({ isOpen: true, draft: buildDraftFromEmail('replyAll', email, email.to?.[0]) });
   }, []);
 
   const openComposeForward = useCallback((email: Email) => {
@@ -245,6 +276,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
   const value: EmailContextType = {
     emails,
     selectedEmails,
+    isSelectionMode,
     isLoading,
     error,
     currentView,
@@ -257,10 +289,12 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     runSearch,
     openComposeNew,
     openComposeReply,
+    openComposeReplyAll,
     openComposeForward,
     closeCompose,
     loadEmails,
     toggleEmailSelection,
+    setSelectionMode,
     selectAllEmails,
     clearSelection,
     clearMailbox,

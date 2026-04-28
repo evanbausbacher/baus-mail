@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // Domains table
 export const domains = pgTable('domains', {
@@ -9,6 +9,17 @@ export const domains = pgTable('domains', {
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
 }, (table) => ({
   nameIdx: index('name_idx').on(table.name),
+}));
+
+export const folders = pgTable('folders', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  domainId: text('domain_id').notNull().references(() => domains.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()),
+}, (table) => ({
+  domainIdx: index('folders_domain_idx').on(table.domainId),
+  domainNameUniqueIdx: uniqueIndex('folders_domain_name_unique_idx').on(table.domainId, table.name),
 }));
 
 // Emails table (unified for sent and received)
@@ -48,6 +59,8 @@ export const emails = pgTable('emails', {
   isStarred: boolean('is_starred').notNull().default(false),
   isSpam: boolean('is_spam').notNull().default(false),
   isDeleted: boolean('is_deleted').notNull().default(false),
+  isArchived: boolean('is_archived').notNull().default(false),
+  folderId: text('folder_id').references(() => folders.id, { onDelete: 'set null' }),
 
   // Tags/labels
   labels: text('labels'), // JSON array string
@@ -59,6 +72,8 @@ export const emails = pgTable('emails', {
   messageIdIdx: index('message_id_idx').on(table.messageId),
   createdAtIdx: index('created_at_idx').on(table.createdAt),
   isDeletedIdx: index('is_deleted_idx').on(table.isDeleted),
+  isArchivedIdx: index('is_archived_idx').on(table.isArchived),
+  folderIdx: index('folder_idx').on(table.folderId),
 }));
 
 // Sync state tracking (stores newest known Resend email ID per domain/type)

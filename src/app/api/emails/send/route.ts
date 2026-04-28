@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
       isStarred: false,
       isSpam: false,
       isDeleted: false,
+      isArchived: false,
+      folderId: null,
       labels: null,
     };
 

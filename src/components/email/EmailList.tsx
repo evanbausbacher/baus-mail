@@ -5,8 +5,11 @@ import { useDomains } from '@/hooks/useDomains';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { EmailListItem } from '@/components/email/EmailListItem';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { ActionSheet, ActionSheetButton } from '@/components/ui/ActionSheet';
+import { MovePicker } from '@/components/email/MovePicker';
 import { EmailListSkeleton } from '@/components/email/EmailListSkeleton';
 import { Loader2, Inbox } from 'lucide-react';
+import { useEmailActions } from '@/hooks/useEmailActions';
 
 const PULL_TRIGGER = 80;
 const PULL_MAX = 120;
@@ -18,10 +21,15 @@ export function EmailList() {
     isLoading,
     error,
     selectedEmails,
+    isSelectionMode,
     selectAllEmails,
     clearSelection,
+    setSelectionMode,
     refreshEmails,
   } = useEmails();
+  const { act } = useEmailActions();
+  const [markOpen, setMarkOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
 
   const allSelected = useMemo(() => {
     return emails.length > 0 && selectedEmails.size === emails.length;
@@ -141,6 +149,50 @@ export function EmailList() {
           </div>
         )}
       </div>
+
+      {isSelectionMode && selectedEmails.size > 0 && (
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur pb-safe">
+          <div className="grid grid-cols-3 px-3 py-2">
+            <button type="button" onClick={() => setMarkOpen(true)} className="h-11 text-accent font-medium">
+              Mark
+            </button>
+            <button type="button" onClick={() => setMoveOpen(true)} className="h-11 text-accent font-medium">
+              Move
+            </button>
+            <button
+              type="button"
+              onClick={() => act(Array.from(selectedEmails), 'delete', { clearSelection: true }).then(() => setSelectionMode(false))}
+              className="h-11 text-red-600 font-medium"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ActionSheet isOpen={markOpen} title={`${selectedEmails.size} selected`} onClose={() => setMarkOpen(false)}>
+        <ActionSheetButton onClick={() => act(Array.from(selectedEmails), 'markRead', { clearSelection: true }).then(() => setMarkOpen(false))}>
+          Mark as Read
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => act(Array.from(selectedEmails), 'markUnread', { clearSelection: true }).then(() => setMarkOpen(false))}>
+          Mark as Unread
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => act(Array.from(selectedEmails), 'spam', { clearSelection: true }).then(() => setMarkOpen(false))}>
+          Move to Junk
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => act(Array.from(selectedEmails), 'star', { clearSelection: true }).then(() => setMarkOpen(false))}>
+          Flag
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => act(Array.from(selectedEmails), 'unstar', { clearSelection: true }).then(() => setMarkOpen(false))}>
+          Unflag
+        </ActionSheetButton>
+      </ActionSheet>
+
+      <MovePicker
+        isOpen={moveOpen}
+        emailIds={Array.from(selectedEmails)}
+        onClose={() => setMoveOpen(false)}
+      />
     </div>
   );
 }

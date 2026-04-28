@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { Menu, Search as SearchIcon, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { useDomains } from '@/hooks/useDomains';
+import { useFolders } from '@/hooks/useFolders';
 import { SearchBar } from '@/components/ui/SearchBar';
 
 interface MobileTopBarProps {
@@ -18,14 +19,18 @@ const VIEW_TITLE: Record<string, string> = {
   starred: 'Starred',
   spam: 'Spam',
   trash: 'Trash',
+  archive: 'Archive',
 };
 
 export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
   const { activeDomain } = useDomains();
+  const { folders } = useFolders();
   const {
     currentView,
     selectedEmail,
     setSelectedEmail,
+    isSelectionMode,
+    setSelectionMode,
     searchQuery,
     setSearchQuery,
     runSearch,
@@ -43,6 +48,9 @@ export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
   };
 
   const inDetail = Boolean(selectedEmail);
+  const title = currentView.startsWith('folder:')
+    ? folders.find((folder) => currentView === `folder:${folder.id}`)?.name ?? 'Folder'
+    : VIEW_TITLE[currentView] ?? currentView;
 
   if (inDetail) {
     // Detail view's own header takes over; we render only the safe-area top.
@@ -63,7 +71,7 @@ export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
 
         <div className="flex-1 min-w-0">
           <div className="text-base font-semibold text-ink truncate leading-tight">
-            {VIEW_TITLE[currentView] ?? currentView}
+            {title}
           </div>
           {activeDomain && (
             <div className="text-[11px] text-ink-subtle truncate leading-tight">
@@ -74,12 +82,11 @@ export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
 
         <button
           type="button"
-          onClick={handleSync}
-          disabled={isSyncing || !activeDomain}
-          aria-label="Sync"
-          className="h-10 w-10 inline-flex items-center justify-center rounded-full text-ink hover:bg-line/40 disabled:opacity-40"
+          onClick={() => setSelectionMode(!isSelectionMode)}
+          disabled={!activeDomain}
+          className="h-10 px-2 inline-flex items-center justify-center rounded-full text-accent text-sm font-medium hover:bg-accent/10 disabled:opacity-40"
         >
-          <RefreshCw className={clsx('w-5 h-5', isSyncing && 'animate-spin')} />
+          {isSelectionMode ? 'Done' : 'Select'}
         </button>
 
         <button
@@ -92,6 +99,16 @@ export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
           )}
         >
           <SearchIcon className="w-5 h-5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={isSyncing || !activeDomain}
+          aria-label="Sync"
+          className="h-10 w-10 inline-flex items-center justify-center rounded-full text-ink hover:bg-line/40 disabled:opacity-40"
+        >
+          <RefreshCw className={clsx('w-5 h-5', isSyncing && 'animate-spin')} />
         </button>
       </div>
 

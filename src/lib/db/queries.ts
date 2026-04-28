@@ -1,12 +1,14 @@
 import { eq, and, or, desc, sql, inArray, lt } from "drizzle-orm";
 import { db } from "./index";
-import { domains, emails, syncState } from "./schema";
+import { domains, emails, folders, syncState } from "./schema";
 import type { Domain, CreateDomainInput, UpdateDomainInput } from "@/types/domain";
 import type { Email, EmailType } from "@/types/email";
+import type { MailFolder } from "@/types/folder";
 
 type DomainRow = typeof domains.$inferSelect;
 type EmailRow = typeof emails.$inferSelect;
 type EmailInsertRow = typeof emails.$inferInsert;
+type FolderRow = typeof folders.$inferSelect;
 
 // ============================================
 // Domain Queries
@@ -26,6 +28,7 @@ export async function syncDomainsFromConfig(domainNames: string[]): Promise<Doma
     for (const domain of existingDomains) {
       if (!configuredNames.has(domain.name.toLowerCase())) {
         await tx.delete(emails).where(eq(emails.domainId, domain.id));
+        await tx.delete(folders).where(eq(folders.domainId, domain.id));
         await tx.delete(syncState).where(eq(syncState.domainId, domain.id));
         await tx.delete(domains).where(eq(domains.id, domain.id));
       }
@@ -117,6 +120,7 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
 export async function deleteDomain(id: string): Promise<boolean> {
   await db.transaction(async (tx) => {
     await tx.delete(emails).where(eq(emails.domainId, id));
+    await tx.delete(folders).where(eq(folders.domainId, id));
     await tx.delete(syncState).where(eq(syncState.domainId, id));
     await tx.delete(domains).where(eq(domains.id, id));
   });
@@ -126,6 +130,68 @@ export async function deleteDomain(id: string): Promise<boolean> {
 
 export async function updateDomainLastSynced(id: string): Promise<void> {
   await db.update(domains).set({ lastSyncedAt: new Date() }).where(eq(domains.id, id));
+}
+
+// ============================================
+// Folder Queries
+// ============================================
+
+export async function getFoldersByDomain(domainId: string): Promise<MailFolder[]> {
+  const result = await db
+    .select()
+    .from(folders)
+    .where(eq(folders.domainId, domainId))
+    .orderBy(folders.name);
+
+  return result.map(mapFolderFromDb);
+}
+
+export async function getFolderById(id: string): Promise<MailFolder | null> {
+  const result = await db.select().from(folders).where(eq(folders.id, id)).limit(1);
+  return result.length > 0 ? mapFolderFromDb(result[0]) : null;
+}
+
+export async function createFolder(input: { domainId: string; name: string }): Promise<MailFolder> {
+  const now = new Date();
+  const id = crypto.randomUUID();
+
+  await db.insert(folders).values({
+    id,
+    domainId: input.domainId,
+    name: input.name.trim(),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const folder = await getFolderById(id);
+  if (!folder) throw new Error("Failed to create folder");
+  return folder;
+}
+
+export async function updateFolder(id: string, input: { name: string }): Promise<MailFolder | null> {
+  await db
+    .update(folders)
+    .set({ name: input.name.trim(), updatedAt: new Date() })
+    .where(eq(folders.id, id));
+
+  return getFolderById(id);
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(emails)
+      .set({ folderId: null })
+      .where(
+        and(
+          eq(emails.folderId, id),
+          eq(emails.isSpam, false),
+          eq(emails.isDeleted, false),
+          eq(emails.isArchived, false)
+        )
+      );
+    await tx.delete(folders).where(eq(folders.id, id));
+  });
 }
 
 // ============================================
@@ -200,6 +266,8 @@ export async function searchEmails(params: {
     isStarred?: boolean;
     isSpam?: boolean;
     isDeleted?: boolean;
+    isArchived?: boolean;
+    folderId?: string | null;
     from?: string;
     to?: string;
     subject?: string;
@@ -235,6 +303,8 @@ export async function searchEmails(params: {
     f?.isStarred !== undefined ? eq(emails.isStarred, f.isStarred) : undefined,
     f?.isSpam !== undefined ? eq(emails.isSpam, f.isSpam) : undefined,
     f?.isDeleted !== undefined ? eq(emails.isDeleted, f.isDeleted) : undefined,
+    f?.isArchived !== undefined ? eq(emails.isArchived, f.isArchived) : undefined,
+    f?.folderId !== undefined && f.folderId !== null ? eq(emails.folderId, f.folderId) : undefined,
     fromLike ? sql`lower(${emails.from}) like ${fromLike}` : undefined,
     toLike ? sql`lower(${emails.to}) like ${toLike}` : undefined,
     subjectLike ? sql`lower(${emails.subject}) like ${subjectLike}` : undefined,
@@ -279,6 +349,8 @@ export async function createEmail(email: Omit<Email, "syncedAt">): Promise<Email
     isStarred: email.isStarred,
     isSpam: email.isSpam,
     isDeleted: email.isDeleted,
+    isArchived: email.isArchived,
+    folderId: email.folderId ?? null,
     labels: email.labels ? JSON.stringify(email.labels) : null,
   });
 
@@ -312,6 +384,8 @@ export async function upsertEmailRemote(email: Omit<Email, "syncedAt">): Promise
     isStarred: email.isStarred,
     isSpam: email.isSpam,
     isDeleted: email.isDeleted,
+    isArchived: email.isArchived,
+    folderId: email.folderId ?? null,
     labels: email.labels ? JSON.stringify(email.labels) : null,
   };
 
@@ -370,6 +444,8 @@ export async function upsertEmailRemotes(emailList: Array<Omit<Email, "syncedAt"
     isStarred: email.isStarred,
     isSpam: email.isSpam,
     isDeleted: email.isDeleted,
+    isArchived: email.isArchived,
+    folderId: email.folderId ?? null,
     labels: email.labels ? JSON.stringify(email.labels) : null,
   }));
 
@@ -406,6 +482,8 @@ export async function updateEmailFlags(
     isStarred?: boolean;
     isSpam?: boolean;
     isDeleted?: boolean;
+    isArchived?: boolean;
+    folderId?: string | null;
   }
 ): Promise<void> {
   const updates: Record<string, unknown> = {};
@@ -414,6 +492,8 @@ export async function updateEmailFlags(
   if (flags.isStarred !== undefined) updates.isStarred = flags.isStarred;
   if (flags.isSpam !== undefined) updates.isSpam = flags.isSpam;
   if (flags.isDeleted !== undefined) updates.isDeleted = flags.isDeleted;
+  if (flags.isArchived !== undefined) updates.isArchived = flags.isArchived;
+  if (flags.folderId !== undefined) updates.folderId = flags.folderId;
 
   for (const emailId of emailIds) {
     await db.update(emails).set(updates).where(eq(emails.id, emailId));
@@ -488,6 +568,22 @@ function mapDomainFromDb(row: DomainRow): Domain {
   };
 }
 
+function mapFolderFromDb(row: FolderRow): MailFolder {
+  const toDate = (value: unknown) => {
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") return new Date(value);
+    return new Date(String(value));
+  };
+
+  return {
+    id: row.id,
+    domainId: row.domainId,
+    name: row.name,
+    createdAt: toDate(row.createdAt),
+    updatedAt: toDate(row.updatedAt),
+  };
+}
+
 function mapEmailFromDb(row: EmailRow): Email {
   const toDate = (value: unknown) => {
     if (value instanceof Date) return value;
@@ -519,6 +615,8 @@ function mapEmailFromDb(row: EmailRow): Email {
     isStarred: Boolean(row.isStarred),
     isSpam: Boolean(row.isSpam),
     isDeleted: Boolean(row.isDeleted),
+    isArchived: Boolean(row.isArchived),
+    folderId: row.folderId,
     labels: row.labels ? JSON.parse(row.labels) : null,
   };
 }

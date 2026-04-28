@@ -24,6 +24,8 @@ export interface Email {
   isStarred: boolean;
   isSpam: boolean;
   isDeleted: boolean;
+  isArchived: boolean;
+  folderId?: string | null;
   labels?: string[] | null;
 }
 
@@ -65,5 +67,7 @@ export interface EmailFilters {
   isStarred?: boolean;
   isSpam?: boolean;
   isDeleted?: boolean;
+  isArchived?: boolean;
+  folderId?: string | null;
   search?: string;
 }

@@ -53,7 +53,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
   const defaultFrom = activeDomain ? `support@${activeDomain.name}` : '';
 
   const initialFromTemplate: TemplateId =
-    initial.mode === 'reply' ? 'reply' : 'plain';
+    initial.mode === 'reply' || initial.mode === 'replyAll' ? 'reply' : 'plain';
 
   const [tab, setTab] = useState<'compose' | 'preview'>('compose');
   const [templateId, setTemplateId] = useState<TemplateId>(initialFromTemplate);
@@ -76,7 +76,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
     if (lastInitialRef.current === initial) return;
     lastInitialRef.current = initial;
 
-    const startTemplate: TemplateId = initial.mode === 'reply' ? 'reply' : 'plain';
+    const startTemplate: TemplateId = initial.mode === 'reply' || initial.mode === 'replyAll' ? 'reply' : 'plain';
     setTemplateId(startTemplate);
     setTab('compose');
     setFrom(initial.from ?? defaultFrom);
@@ -128,6 +128,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
 
   const title = useMemo(() => {
     if (initial.mode === 'reply') return 'Reply';
+    if (initial.mode === 'replyAll') return 'Reply All';
     if (initial.mode === 'forward') return 'Forward';
     return 'New message';
   }, [initial.mode]);

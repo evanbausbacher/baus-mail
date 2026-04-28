@@ -3,10 +3,10 @@
 import type { Email } from '@/types/email';
 import { Button } from '@/components/ui/Button';
 import { useEmailActions } from '@/hooks/useEmailActions';
-import { Star, Trash2, AlertOctagon, MailOpen, Mail } from 'lucide-react';
+import { Archive, Star, Trash2, AlertOctagon, MailOpen, Mail } from 'lucide-react';
 
 export function EmailActions({ email }: { email: Email }) {
-  const { isActing, toggleStar, toggleSpam, toggleRead, trash } = useEmailActions();
+  const { isActing, toggleStar, toggleSpam, toggleRead, trash, archive } = useEmailActions();
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -19,10 +19,12 @@ export function EmailActions({ email }: { email: Email }) {
       <Button variant="ghost" onClick={() => toggleSpam(email)} disabled={isActing} aria-label="Spam" tooltip={email.isSpam ? 'Not spam' : 'Mark as spam'}>
         <AlertOctagon className="w-4 h-4" />
       </Button>
+      <Button variant="ghost" onClick={() => archive(email)} disabled={isActing} aria-label="Archive" tooltip={email.isArchived ? 'Unarchive' : 'Archive'}>
+        <Archive className="w-4 h-4" />
+      </Button>
       <Button variant="ghost" onClick={() => trash(email)} disabled={isActing} aria-label="Delete" tooltip="Delete">
         <Trash2 className="w-4 h-4" />
       </Button>
     </div>
   );
 }
-

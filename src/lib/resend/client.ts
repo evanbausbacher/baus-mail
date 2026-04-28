@@ -291,6 +291,8 @@ export function mapResendReceivedEmailToEmail(
     isStarred: false,
     isSpam: false,
     isDeleted: false,
+    isArchived: false,
+    folderId: null,
     labels: null,
   };
 }
@@ -326,6 +328,8 @@ export function mapResendSentEmailToEmail(
     isStarred: false,
     isSpam: false,
     isDeleted: false,
+    isArchived: false,
+    folderId: null,
     labels: null,
   };
 }

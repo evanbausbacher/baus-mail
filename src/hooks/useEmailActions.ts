@@ -7,11 +7,11 @@ import type { EmailActionInput } from '@/lib/utils/validation';
 
 type Action = EmailActionInput['action'];
 
-async function postAction(emailIds: string[], action: Action) {
+async function postAction(emailIds: string[], action: Action, folderId?: string) {
   const res = await fetch('/api/emails/actions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ emailIds, action }),
+    body: JSON.stringify({ emailIds, action, folderId }),
   });
 
   if (!res.ok) {
@@ -49,11 +49,11 @@ export function useEmailActions() {
   const [error, setError] = useState<string | null>(null);
 
   const act = useCallback(
-    async (emailIds: string[], action: Action, opts?: { clearSelection?: boolean }) => {
+    async (emailIds: string[], action: Action, opts?: { clearSelection?: boolean; folderId?: string }) => {
       setIsActing(true);
       setError(null);
       try {
-        await postAction(emailIds, action);
+        await postAction(emailIds, action, opts?.folderId);
         await refreshEmails();
 
         if (selectedEmail && emailIds.includes(selectedEmail.id)) {
@@ -105,6 +105,20 @@ export function useEmailActions() {
     [act]
   );
 
+  const archive = useCallback(
+    async (email: Email) => {
+      await act([email.id], email.isArchived ? 'unarchive' : 'archive');
+    },
+    [act]
+  );
+
+  const moveToFolder = useCallback(
+    async (emailIds: string[], folderId: string, opts?: { clearSelection?: boolean }) => {
+      await act(emailIds, 'moveToFolder', { ...opts, folderId });
+    },
+    [act]
+  );
+
   return {
     isActing,
     error,
@@ -113,5 +127,7 @@ export function useEmailActions() {
     toggleRead,
     toggleSpam,
     trash,
+    archive,
+    moveToFolder,
   };
 }

@@ -3,10 +3,12 @@
 import { RefreshCw, Trash2, AlertOctagon, Star, MailOpen, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { MovePicker } from '@/components/email/MovePicker';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { useDomains } from '@/hooks/useDomains';
 import { useState } from 'react';
 import { useEmailActions } from '@/hooks/useEmailActions';
+import { useFolders } from '@/hooks/useFolders';
 
 interface TopBarProps {
   onSync: () => Promise<void>;
@@ -16,8 +18,10 @@ interface TopBarProps {
 export function TopBar({ onSync, onCompose }: TopBarProps) {
   const { selectedEmails, clearSelection, currentView, setSearchQuery, runSearch } = useEmails();
   const { activeDomain } = useDomains();
+  const { folders } = useFolders();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
   const { act, isActing } = useEmailActions();
 
   const handleSync = async () => {
@@ -39,7 +43,9 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
     await act(Array.from(selectedEmails), action, { clearSelection: true });
   };
 
-  const viewTitle = currentView.charAt(0).toUpperCase() + currentView.slice(1);
+  const viewTitle = currentView.startsWith('folder:')
+    ? folders.find((folder) => currentView === `folder:${folder.id}`)?.name ?? 'Folder'
+    : currentView.charAt(0).toUpperCase() + currentView.slice(1);
 
   return (
     <div className="border-b border-line bg-surface">
@@ -111,6 +117,14 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
               </Button>
               <Button
                 variant="ghost"
+                onClick={() => setMoveOpen(true)}
+                disabled={isActing}
+                tooltip="Move"
+              >
+                Move
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => handleBulkAction('star')}
                 disabled={isActing}
                 tooltip="Star"
@@ -145,6 +159,11 @@ export function TopBar({ onSync, onCompose }: TopBarProps) {
           )}
         </div>
       </div>
+      <MovePicker
+        isOpen={moveOpen}
+        emailIds={Array.from(selectedEmails)}
+        onClose={() => setMoveOpen(false)}
+      />
     </div>
   );
 }

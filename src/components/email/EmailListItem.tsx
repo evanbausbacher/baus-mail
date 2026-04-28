@@ -2,10 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Star, Trash2 } from 'lucide-react';
+import { Ellipsis, Mail, MailOpen, Reply, Star } from 'lucide-react';
 import type { Email } from '@/types/email';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { ActionSheet, ActionSheetButton } from '@/components/ui/ActionSheet';
 import { formatDate } from '@/lib/utils/date-helpers';
 import { getEmailPreview, parseEmailAddress } from '@/lib/utils/email-helpers';
 import { getInitials, avatarColor } from '@/lib/utils/avatar';
@@ -16,11 +17,21 @@ interface EmailListItemProps {
 }
 
 const SWIPE_THRESHOLD = 64;
-const SWIPE_TRIGGER = 120;
+const SWIPE_TRIGGER = 150;
+const SWIPE_REVEAL = 228;
 
 export function EmailListItem({ email }: EmailListItemProps) {
-  const { selectedEmails, toggleEmailSelection, selectedEmail, setSelectedEmail } = useEmails();
-  const { toggleStar, trash, isActing } = useEmailActions();
+  const {
+    selectedEmails,
+    isSelectionMode,
+    toggleEmailSelection,
+    selectedEmail,
+    setSelectedEmail,
+    openComposeReply,
+    openComposeReplyAll,
+    openComposeForward,
+  } = useEmails();
+  const { act, toggleStar, toggleRead, archive, isActing } = useEmailActions();
 
   const isSelected = selectedEmails.has(email.id);
   const isActive = selectedEmail?.id === email.id;
@@ -45,6 +56,7 @@ export function EmailListItem({ email }: EmailListItemProps) {
   const startY = useRef<number | null>(null);
   const [dx, setDx] = useState(0);
   const [committing, setCommitting] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const draggingRef = useRef(false);
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -78,19 +90,19 @@ export function EmailListItem({ email }: EmailListItemProps) {
     setDx(deltaX);
   };
 
-  const finish = (commit: 'star' | 'trash' | null) => {
+  const finish = (commit: 'read' | 'more' | null) => {
     if (!commit) {
       setDx(0);
       return;
     }
     setCommitting(true);
     // Snap to side, then run action
-    const target = commit === 'trash' ? -window.innerWidth : window.innerWidth;
+    const target = commit === 'more' ? -SWIPE_REVEAL : SWIPE_REVEAL;
     setDx(target);
     if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
     commitTimerRef.current = setTimeout(() => {
-      if (commit === 'star') toggleStar(email);
-      else trash(email);
+      if (commit === 'read') toggleRead(email);
+      else setMoreOpen(true);
       setCommitting(false);
       setDx(0);
       commitTimerRef.current = null;
@@ -107,14 +119,14 @@ export function EmailListItem({ email }: EmailListItemProps) {
       setDx(0);
       return;
     }
-    if (dx <= -SWIPE_TRIGGER) finish('trash');
-    else if (dx >= SWIPE_TRIGGER) finish('star');
+    if (dx <= -SWIPE_TRIGGER) finish('more');
+    else if (dx >= SWIPE_TRIGGER) finish('read');
     else setDx(0);
   };
 
   // Background visuals based on swipe direction
-  const showStarBg = dx > SWIPE_THRESHOLD / 2;
-  const showTrashBg = dx < -SWIPE_THRESHOLD / 2;
+  const showReadBg = dx > SWIPE_THRESHOLD / 2;
+  const showLeftBg = dx < -SWIPE_THRESHOLD / 2;
 
   return (
     <div className="relative bg-surface overflow-hidden">
@@ -122,22 +134,29 @@ export function EmailListItem({ email }: EmailListItemProps) {
       <div
         className={clsx(
           'absolute inset-y-0 left-0 flex items-center pl-6 transition-opacity',
-          'bg-yellow-400 text-white',
-          showStarBg ? 'opacity-100' : 'opacity-0'
+          'bg-blue-500 text-white',
+          showReadBg ? 'opacity-100' : 'opacity-0'
         )}
         aria-hidden
       >
-        <Star className="w-5 h-5" fill="currentColor" />
+        {email.isRead ? <Mail className="w-5 h-5" /> : <MailOpen className="w-5 h-5" />}
       </div>
       <div
         className={clsx(
-          'absolute inset-y-0 right-0 flex items-center pr-6 transition-opacity',
-          'bg-red-500 text-white',
-          showTrashBg ? 'opacity-100' : 'opacity-0'
+          'absolute inset-y-0 right-0 flex items-stretch justify-end transition-opacity',
+          showLeftBg ? 'opacity-100' : 'opacity-0'
         )}
         aria-hidden
       >
-        <Trash2 className="w-5 h-5" />
+        <div className="w-20 px-3 bg-slate-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+          <Ellipsis className="w-4 h-4" />More
+        </div>
+        <div className="w-20 px-3 bg-yellow-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+          <Star className="w-4 h-4" fill="currentColor" />Flag
+        </div>
+        <div className="w-20 px-3 bg-blue-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]">
+          <Reply className="w-4 h-4" />Reply
+        </div>
       </div>
 
       <div
@@ -155,11 +174,13 @@ export function EmailListItem({ email }: EmailListItemProps) {
           'min-h-[72px] px-3 py-3',
           isActive ? 'bg-line/30' : 'hover:bg-line/20'
         )}
-        onClick={() => setSelectedEmail(email)}
+        onClick={() => {
+          if (isSelectionMode) toggleEmailSelection(email.id);
+          else setSelectedEmail(email);
+        }}
       >
         <div className="flex items-start gap-3">
-          {/* Desktop checkbox; hidden on mobile */}
-          <div className="hidden lg:block pt-1" onClick={(e) => e.stopPropagation()}>
+          <div className={clsx('pt-1', isSelectionMode ? 'block' : 'hidden lg:block')} onClick={(e) => e.stopPropagation()}>
             <Checkbox
               checked={isSelected}
               onChange={() => toggleEmailSelection(email.id)}
@@ -226,6 +247,17 @@ export function EmailListItem({ email }: EmailListItemProps) {
           </button>
         </div>
       </div>
+
+      <ActionSheet isOpen={moreOpen} title="Actions" onClose={() => setMoreOpen(false)}>
+        <ActionSheetButton onClick={() => { openComposeReply(email); setMoreOpen(false); }}>Reply</ActionSheetButton>
+        <ActionSheetButton onClick={() => { openComposeReplyAll(email); setMoreOpen(false); }}>Reply All</ActionSheetButton>
+        <ActionSheetButton onClick={() => { openComposeForward(email); setMoreOpen(false); }}>Forward</ActionSheetButton>
+        <ActionSheetButton onClick={() => { archive(email); setMoreOpen(false); }}>Archive</ActionSheetButton>
+        <ActionSheetButton onClick={() => { toggleStar(email); setMoreOpen(false); }}>{email.isStarred ? 'Unflag' : 'Flag'}</ActionSheetButton>
+        <ActionSheetButton onClick={() => { act([email.id], email.isRead ? 'markUnread' : 'markRead'); setMoreOpen(false); }}>
+          {email.isRead ? 'Mark as Unread' : 'Mark as Read'}
+        </ActionSheetButton>
+      </ActionSheet>
     </div>
   );
 }
