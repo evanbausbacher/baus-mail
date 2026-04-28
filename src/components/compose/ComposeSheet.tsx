@@ -50,7 +50,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
   const { activeDomain } = useDomains();
   const { refreshEmails, setCurrentView } = useEmails();
 
-  const defaultFrom = activeDomain ? `no-reply@${activeDomain.name}` : '';
+  const defaultFrom = activeDomain ? `support@${activeDomain.name}` : '';
 
   const initialFromTemplate: TemplateId =
     initial.mode === 'reply' ? 'reply' : 'plain';

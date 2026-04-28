@@ -11,13 +11,13 @@ interface SendAsPickerProps {
 
 /**
  * Renders a "Send as" picker driven by the active domain's saved aliases.
- * - Zero aliases: shows a static label using the domain fallback (e.g. no-reply@domain).
+ * - Zero aliases: shows a static label using the domain fallback (e.g. support@domain).
  * - One alias: shows a static label.
  * - Multiple: shows a select.
  */
 export function SendAsPicker({ aliases, value, onChange, domainFallback }: SendAsPickerProps) {
   if (aliases.length === 0) {
-    const display = value || (domainFallback ? `no-reply@${domainFallback}` : '');
+    const display = value || (domainFallback ? `support@${domainFallback}` : '');
     return (
       <div>
         <label className="block text-sm font-medium text-ink-muted mb-1.5">From</label>
