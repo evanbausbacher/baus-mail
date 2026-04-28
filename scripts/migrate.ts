@@ -33,7 +33,7 @@ if (!connectionString) {
 
 async function main() {
   const pool = new Pool({ connectionString });
-  const db = drizzle(pool);
+  const db = drizzle({ client: pool });
 
   console.log('Running migrations...');
 

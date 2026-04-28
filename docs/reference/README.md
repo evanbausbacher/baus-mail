@@ -1,5 +1,5 @@
-# Reference Archive
+# Reference Notes
 
-This folder contains archived vendor/reference material used while building BausMail.
+Vendor documentation archives are intentionally not committed to this repository.
 
-The files here are not primary setup documentation. Use the root [README](../../README.md) for installation, deployment, and Resend webhook setup.
+Use the root [README](../../README.md) for installation, deployment, and Resend webhook setup. For provider API details, use the upstream Resend documentation directly.

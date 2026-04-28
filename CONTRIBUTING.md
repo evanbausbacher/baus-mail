@@ -13,7 +13,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Use Node.js 18 or newer and Postgres.
+Use Node.js 20.9 or newer and Postgres.
 
 ## Pull Requests
 
