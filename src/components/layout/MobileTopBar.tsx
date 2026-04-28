@@ -7,6 +7,7 @@ import { useEmails } from '@/components/providers/EmailProvider';
 import { useDomains } from '@/hooks/useDomains';
 import { useFolders } from '@/hooks/useFolders';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { DomainAvatar } from '@/components/domain/DomainAvatar';
 
 interface MobileTopBarProps {
   onOpenDrawer: () => void;
@@ -91,8 +92,9 @@ export function MobileTopBar({ onOpenDrawer, onSync, unreadOnly = false }: Mobil
           {unreadOnly ? 'Unread' : title}
         </h1>
         {activeDomain && (
-          <div className="text-xs text-ink-subtle truncate mt-0.5">
-            {activeDomain.name}
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-ink-subtle">
+            <DomainAvatar domain={activeDomain} className="h-4 w-4 text-[8px]" />
+            <span className="truncate">{activeDomain.name}</span>
           </div>
         )}
       </div>

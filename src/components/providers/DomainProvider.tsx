@@ -10,7 +10,7 @@ interface DomainContextType {
   error: string | null;
   setActiveDomain: (domain: Domain) => void;
   refreshDomains: () => Promise<void>;
-  updateDomain: (id: string, updates: { name?: string; isActive?: boolean }) => Promise<void>;
+  updateDomain: (id: string, updates: { name?: string; isActive?: boolean; iconUrl?: string | null }) => Promise<void>;
   deleteDomain: (id: string) => Promise<void>;
 }
 
@@ -40,8 +40,7 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
 
       setActiveDomainState((prev) => {
         if (!prev) return data.domains[0] || null;
-        const stillExists = data.domains.some((d: Domain) => d.id === prev.id);
-        return stillExists ? prev : (data.domains[0] || null);
+        return data.domains.find((d: Domain) => d.id === prev.id) || data.domains[0] || null;
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch domains');
@@ -53,7 +52,7 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
 
   const updateDomain = useCallback(async (
     id: string,
-    updates: { name?: string; isActive?: boolean }
+    updates: { name?: string; isActive?: boolean; iconUrl?: string | null }
   ) => {
     const response = await fetch(`/api/domains/${id}`, {
       method: 'PUT',

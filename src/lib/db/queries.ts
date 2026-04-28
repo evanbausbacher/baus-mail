@@ -43,6 +43,7 @@ export async function syncDomainsFromConfig(domainNames: string[]): Promise<Doma
           createdAt: new Date(),
           isActive: true,
           lastSyncedAt: null,
+          iconUrl: null,
         });
       }
     }
@@ -90,6 +91,7 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
     createdAt: new Date(),
     isActive: true,
     lastSyncedAt: null,
+    iconUrl: null,
   };
 
   await db.insert(domains).values({
@@ -98,6 +100,7 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
     createdAt: newDomain.createdAt,
     isActive: true,
     lastSyncedAt: null,
+    iconUrl: null,
   });
 
   return newDomain;
@@ -108,6 +111,7 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
 
   if (input.name !== undefined) updates.name = input.name;
   if (input.isActive !== undefined) updates.isActive = input.isActive;
+  if (input.iconUrl !== undefined) updates.iconUrl = input.iconUrl;
 
   if (Object.keys(updates).length === 0) {
     return getDomainById(id);
@@ -565,6 +569,7 @@ function mapDomainFromDb(row: DomainRow): Domain {
     createdAt: toDate(row.createdAt),
     isActive: Boolean(row.isActive),
     lastSyncedAt: row.lastSyncedAt ? toDate(row.lastSyncedAt) : null,
+    iconUrl: row.iconUrl,
   };
 }
 

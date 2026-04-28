@@ -7,6 +7,7 @@ export const domains = pgTable('domains', {
   createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()),
   isActive: boolean('is_active').notNull().default(true),
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  iconUrl: text('icon_url'),
 }, (table) => ({
   nameIdx: index('name_idx').on(table.name),
 }));

@@ -4,6 +4,7 @@ export interface Domain {
   createdAt: Date;
   isActive: boolean;
   lastSyncedAt?: Date | null;
+  iconUrl?: string | null;
 }
 
 export interface CreateDomainInput {
@@ -13,4 +14,5 @@ export interface CreateDomainInput {
 export interface UpdateDomainInput {
   name?: string;
   isActive?: boolean;
+  iconUrl?: string | null;
 }

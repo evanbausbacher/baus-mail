@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,8 @@ import { useDomains } from '@/hooks/useDomains';
 import { useFolders } from '@/hooks/useFolders';
 import type { Domain } from '@/types/domain';
 import type { MailFolder } from '@/types/folder';
-import { Folder, Pencil, Trash2 } from 'lucide-react';
+import { DomainAvatar } from '@/components/domain/DomainAvatar';
+import { Folder, Pencil, Trash2, Upload, X } from 'lucide-react';
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -190,10 +191,50 @@ function FolderRow({ folder }: { folder: MailFolder }) {
 }
 
 function DomainRow({ domain }: { domain: Domain }) {
-  const { deleteDomain } = useDomains();
+  const { updateDomain, deleteDomain } = useDomains();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const handleIconChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Choose an image file.');
+      return;
+    }
+
+    if (file.size > 256 * 1024) {
+      setError('Icon must be 256 KB or smaller.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const iconUrl = await readFileAsDataUrl(file);
+      await updateDomain(domain.id, { iconUrl });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to upload icon');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveIcon = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateDomain(domain.id, { iconUrl: null });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to remove icon');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDelete = async () => {
     setSaving(true);
@@ -209,12 +250,43 @@ function DomainRow({ domain }: { domain: Domain }) {
   return (
     <li className="border-b border-line last:border-b-0 bg-surface">
       <div className="flex items-center gap-3 px-4 py-3 min-h-[58px]">
+        <DomainAvatar domain={domain} className="h-10 w-10" />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-ink truncate">{domain.name}</div>
           <div className="text-xs text-ink-subtle truncate">
             Server configured mailbox
           </div>
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+          className="hidden"
+          onChange={handleIconChange}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={saving}
+          tooltip="Upload mailbox icon"
+        >
+          <Upload className="w-4 h-4" />
+        </Button>
+        {domain.iconUrl && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRemoveIcon}
+            disabled={saving}
+            tooltip="Remove mailbox icon"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
 
         {!confirmingDelete ? (
           <Button
@@ -254,4 +326,19 @@ function DomainRow({ domain }: { domain: Domain }) {
       {error && <p className="px-4 pb-3 text-sm text-red-600">{error}</p>}
     </li>
   );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to read icon'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read icon'));
+    reader.readAsDataURL(file);
+  });
 }

@@ -19,7 +19,7 @@ import {
 import { useEmails, type EmailView } from '@/components/providers/EmailProvider';
 import { useDomains } from '@/hooks/useDomains';
 import type { Domain } from '@/types/domain';
-import { getInitials } from '@/lib/utils/avatar';
+import { DomainAvatar } from '@/components/domain/DomainAvatar';
 import { useFolders } from '@/hooks/useFolders';
 
 interface MobileDrawerProps {
@@ -101,7 +101,6 @@ export function MobileDrawer({ isOpen, onClose, onOpenSettings }: MobileDrawerPr
           <ul className="px-1">
             {domains.map((domain) => {
               const isActive = activeDomain?.id === domain.id;
-              const initials = getInitials(domain.name);
               return (
                 <li key={domain.id}>
                   <button
@@ -112,14 +111,10 @@ export function MobileDrawer({ isOpen, onClose, onOpenSettings }: MobileDrawerPr
                       isActive ? 'bg-accent/10' : 'hover:bg-line/40'
                     )}
                   >
-                    <div
-                      className={clsx(
-                        'h-9 w-9 rounded-full inline-flex items-center justify-center text-sm font-semibold',
-                        isActive ? 'bg-accent/15 text-accent' : 'bg-line text-ink-muted'
-                      )}
-                    >
-                      {initials}
-                    </div>
+                    <DomainAvatar
+                      domain={domain}
+                      className={clsx('h-9 w-9', isActive ? 'bg-accent/15 text-accent' : 'bg-line text-ink-muted')}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className={clsx('text-sm truncate', isActive ? 'text-accent font-medium' : 'text-ink')}>
                         {domain.name}
