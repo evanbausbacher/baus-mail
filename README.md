@@ -16,7 +16,7 @@ BausMail is open source and currently at `v0.1.0`. It is useful today for truste
 - Star, delete, read/unread, and spam actions
 - Search across synced email content
 - Email threading support
-- Resend inbound webhook ingestion
+- Resend received and sent webhook ingestion
 - Manual sync fallback for received and sent messages
 - Postgres storage with Drizzle ORM migrations
 - Credentials-based admin access with an email allowlist
@@ -72,6 +72,8 @@ AUTH_ALLOWED_EMAILS=you@example.com
 AUTH_ADMIN_PASSWORD=replace-with-a-strong-password
 
 RESEND_WEBHOOK_SECRET=whsec_...
+# Optional: use this when you configure multiple Resend webhook endpoints.
+RESEND_WEBHOOK_SECRETS=whsec_...,whsec_...
 RESEND_DOMAIN_API_KEYS='{"example.com":"<resend-api-key-for-example.com>","another-app.com":"<resend-api-key-for-another-app.com>"}'
 
 NEXT_PUBLIC_POLLING_INTERVAL=30000
@@ -83,7 +85,8 @@ Notes:
 - `AUTH_ALLOWED_EMAILS` is a comma-separated allowlist for admin sign-in.
 - `AUTH_ADMIN_PASSWORD` is the shared password for allowed admin emails.
 - `AUTH_SECRET` is required by Auth.js in production.
-- `RESEND_WEBHOOK_SECRET` must match the signing secret from the Resend webhook dashboard.
+- `RESEND_WEBHOOK_SECRET` must match the signing secret from the Resend webhook dashboard for a single endpoint.
+- `RESEND_WEBHOOK_SECRETS` is an optional comma-separated list of signing secrets for multiple Resend webhook endpoints. The route accepts a signature from any configured secret, and `RESEND_WEBHOOK_SECRET` remains supported for existing deployments.
 - `RESEND_DOMAIN_API_KEYS` is a server-only JSON object that maps each domain name to its Resend API key. Domain names are matched case-insensitively.
 
 ## Resend Setup
@@ -91,14 +94,16 @@ Notes:
 1. Verify each sending/receiving domain in Resend.
 2. Add each domain and API key to `RESEND_DOMAIN_API_KEYS`.
 3. Start BausMail and sign in with an allowed admin email.
-4. In Resend, create an inbound webhook endpoint that points to:
+4. In Resend, create a webhook endpoint that points to:
 
 ```text
 https://your-app.example.com/api/webhooks/resend
 ```
 
-5. Subscribe the endpoint to received-email events and copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
+5. Subscribe the endpoint to `email.received` and `email.sent`, then copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
 6. Use the sync button in BausMail to backfill or refresh mail when needed.
+
+If you prefer separate webhook endpoints per domain or event type, point each endpoint to the same `/api/webhooks/resend` URL and put all signing secrets in `RESEND_WEBHOOK_SECRETS`.
 
 For local webhook testing, expose your dev server with a tunnel and set the webhook URL to the public tunnel URL plus `/api/webhooks/resend`.
 
@@ -128,7 +133,7 @@ BausMail `v0.1.0` is intended for trusted, self-hosted, single-tenant deployment
 
 Resend API keys are not stored in the application database. They are read at runtime from the server-only `RESEND_DOMAIN_API_KEYS` environment variable. Keep hosting environment access restricted and use domain-scoped API keys where possible.
 
-The Resend webhook route verifies Svix signatures with `RESEND_WEBHOOK_SECRET`. Do not disable that check in production.
+The Resend webhook route verifies Svix signatures with `RESEND_WEBHOOK_SECRET` or `RESEND_WEBHOOK_SECRETS`. Do not disable that check in production.
 
 Report vulnerabilities privately using the process in [SECURITY.md](./SECURITY.md).
 

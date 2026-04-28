@@ -28,22 +28,42 @@ function getRequiredHeader(request: NextRequest, name: string) {
   return value;
 }
 
-function verifyWebhook(payload: string, request: NextRequest): ResendWebhookEvent {
-  const secret = process.env.RESEND_WEBHOOK_SECRET;
-  if (!secret) {
-    throw new Error('RESEND_WEBHOOK_SECRET is required');
+function getWebhookSecrets() {
+  const secrets = [
+    ...(process.env.RESEND_WEBHOOK_SECRETS ?? '').split(','),
+    process.env.RESEND_WEBHOOK_SECRET,
+  ]
+    .map((secret) => secret?.trim())
+    .filter((secret): secret is string => Boolean(secret));
+
+  if (secrets.length === 0) {
+    throw new Error('RESEND_WEBHOOK_SECRET or RESEND_WEBHOOK_SECRETS is required');
   }
 
-  const webhook = new Webhook(secret);
-  const verified = webhook.verify(payload, {
+  return [...new Set(secrets)];
+}
+
+function verifyWebhook(payload: string, request: NextRequest): ResendWebhookEvent {
+  const headers = {
     'svix-id': getRequiredHeader(request, 'svix-id'),
     'svix-timestamp': getRequiredHeader(request, 'svix-timestamp'),
     'svix-signature': getRequiredHeader(request, 'svix-signature'),
-  });
+  };
 
-  return typeof verified === 'string'
-    ? JSON.parse(verified)
-    : (verified as ResendWebhookEvent);
+  for (const secret of getWebhookSecrets()) {
+    try {
+      const webhook = new Webhook(secret);
+      const verified = webhook.verify(payload, headers);
+
+      return typeof verified === 'string'
+        ? JSON.parse(verified)
+        : (verified as ResendWebhookEvent);
+    } catch {
+      // Try the next configured webhook secret.
+    }
+  }
+
+  throw new Error('No configured Resend webhook secret matched the request signature');
 }
 
 async function processReceivedEmail(event: ResendWebhookEvent) {

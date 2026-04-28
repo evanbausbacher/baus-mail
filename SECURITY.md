@@ -26,6 +26,6 @@ Required production settings:
 - Set `AUTH_SECRET` to a long random value.
 - Set `AUTH_ALLOWED_EMAILS` to the exact admin email addresses allowed to sign in.
 - Set `AUTH_ADMIN_PASSWORD` to a strong password.
-- Set `RESEND_WEBHOOK_SECRET` from the Resend webhook dashboard.
+- Set `RESEND_WEBHOOK_SECRET` from the Resend webhook dashboard, or `RESEND_WEBHOOK_SECRETS` as a comma-separated list when using multiple Resend webhook endpoints.
 - Set `RESEND_DOMAIN_API_KEYS` to a JSON map of domain names to Resend API keys.
 - Keep `/api/webhooks/resend` signature verification enabled.
