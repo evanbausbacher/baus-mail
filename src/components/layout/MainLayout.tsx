@@ -11,7 +11,7 @@ import { useEmails } from '@/components/providers/EmailProvider';
 
 export function MainLayout() {
   const { activeDomain } = useDomains();
-  const { currentView, setCurrentView, loadEmails, refreshEmails, selectedEmail, compose, openComposeNew, closeCompose } =
+  const { currentView, setCurrentView, loadEmails, refreshEmails, selectedEmail, compose, openComposeNew, closeCompose, clearMailbox } =
     useEmails();
 
   const handleSync = useCallback(async () => {
@@ -45,9 +45,13 @@ export function MainLayout() {
   }, [activeDomain, refreshEmails]);
 
   useEffect(() => {
-    if (!activeDomain) return;
+    if (!activeDomain) {
+      clearMailbox();
+      return;
+    }
+
     loadEmails(activeDomain.id, currentView);
-  }, [activeDomain, currentView, loadEmails]);
+  }, [activeDomain, clearMailbox, currentView, loadEmails]);
 
   return (
     <div className="flex h-screen bg-background">

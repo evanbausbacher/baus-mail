@@ -4,7 +4,6 @@ import { boolean, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 export const domains = pgTable('domains', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text('name').notNull().unique(), // e.g., "trainingdojo.app"
-  apiKey: text('api_key').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()),
   isActive: boolean('is_active').notNull().default(true),
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),

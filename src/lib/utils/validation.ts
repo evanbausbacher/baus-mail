@@ -3,12 +3,10 @@ import { z } from 'zod';
 // Domain validation schemas
 export const createDomainSchema = z.object({
   name: z.string().min(1, 'Domain name is required').regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Invalid domain format'),
-  apiKey: z.string().min(1, 'API key is required').startsWith('re_', 'Invalid Resend API key format'),
 });
 
 export const updateDomainSchema = z.object({
   name: z.string().min(1).regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/).optional(),
-  apiKey: z.string().min(1).startsWith('re_').optional(),
   isActive: z.boolean().optional(),
 });
 
