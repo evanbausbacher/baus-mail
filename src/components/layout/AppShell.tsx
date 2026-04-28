@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { MobileTopBar } from '@/components/layout/MobileTopBar';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
-import { ComposeFab } from '@/components/layout/ComposeFab';
+import { MobileMailToolbar } from '@/components/layout/MobileMailToolbar';
 import { EmailList } from '@/components/email/EmailList';
 import { EmailDetail } from '@/components/email/EmailDetail';
 import { ComposeSheet } from '@/components/compose/ComposeSheet';
@@ -24,10 +24,13 @@ export function AppShell() {
     compose,
     openComposeNew,
     closeCompose,
+    emails,
+    isSelectionMode,
   } = useEmails();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileUnreadOnly, setMobileUnreadOnly] = useState(false);
 
   const handleSync = useCallback(async () => {
     if (!activeDomain) {
@@ -70,7 +73,13 @@ export function AppShell() {
     <div className="min-h-dvh bg-background text-ink">
       {/* ============ Mobile (< lg) ============ */}
       <div className="lg:hidden h-dvh flex flex-col">
-        {!detailOpen && <MobileTopBar onOpenDrawer={() => setDrawerOpen(true)} onSync={handleSync} />}
+        {!detailOpen && (
+          <MobileTopBar
+            onOpenDrawer={() => setDrawerOpen(true)}
+            onSync={handleSync}
+            unreadOnly={mobileUnreadOnly}
+          />
+        )}
 
         <main className="flex-1 min-h-0 overflow-y-auto">
           {!activeDomain ? (
@@ -81,11 +90,17 @@ export function AppShell() {
           ) : detailOpen && selectedEmail ? (
             <EmailDetail email={selectedEmail} />
           ) : (
-            <EmailList />
+            <EmailList unreadOnly={mobileUnreadOnly} />
           )}
         </main>
 
-        <ComposeFab onCompose={openComposeNew} visible={!detailOpen && Boolean(activeDomain)} />
+        <MobileMailToolbar
+          visible={!detailOpen && Boolean(activeDomain) && !isSelectionMode}
+          unreadOnly={mobileUnreadOnly}
+          unreadCount={emails.filter((email) => !email.isRead).length}
+          onToggleUnread={() => setMobileUnreadOnly((value) => !value)}
+          onCompose={openComposeNew}
+        />
 
         <MobileDrawer
           isOpen={drawerOpen}

@@ -14,7 +14,7 @@ import { useEmailActions } from '@/hooks/useEmailActions';
 const PULL_TRIGGER = 80;
 const PULL_MAX = 120;
 
-export function EmailList() {
+export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
   const { activeDomain } = useDomains();
   const {
     emails,
@@ -34,6 +34,10 @@ export function EmailList() {
   const allSelected = useMemo(() => {
     return emails.length > 0 && selectedEmails.size === emails.length;
   }, [emails.length, selectedEmails.size]);
+
+  const visibleEmails = useMemo(() => {
+    return unreadOnly ? emails.filter((email) => !email.isRead) : emails;
+  }, [emails, unreadOnly]);
 
   // ---- Pull-to-refresh ----
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -118,8 +122,8 @@ export function EmailList() {
           }}
           label="Select all"
         />
-        <div className="text-xs text-ink-subtle">
-          {emails.length} email{emails.length === 1 ? '' : 's'}
+          <div className="text-xs text-ink-subtle">
+          {visibleEmails.length} email{visibleEmails.length === 1 ? '' : 's'}
         </div>
       </div>
 
@@ -133,17 +137,17 @@ export function EmailList() {
           <EmailListSkeleton />
         ) : error ? (
           <div className="p-6 text-sm text-red-700">{error}</div>
-        ) : emails.length === 0 ? (
+        ) : visibleEmails.length === 0 ? (
           <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
             <div className="h-14 w-14 rounded-full bg-line/40 flex items-center justify-center mb-3">
               <Inbox className="w-6 h-6 text-ink-muted" />
             </div>
-            <div className="text-sm font-medium text-ink">No emails yet</div>
-            <div className="text-xs text-ink-subtle mt-1">Pull down to refresh.</div>
+            <div className="text-sm font-medium text-ink">{unreadOnly ? 'No unread emails' : 'No emails yet'}</div>
+            <div className="text-xs text-ink-subtle mt-1">{unreadOnly ? 'Use the filter button to show all mail.' : 'Pull down to refresh.'}</div>
           </div>
         ) : (
-          <div>
-            {emails.map((email) => (
+          <div className="pb-2">
+            {visibleEmails.map((email) => (
               <EmailListItem key={email.id} email={email} />
             ))}
           </div>

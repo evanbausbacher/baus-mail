@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import clsx from 'clsx';
-import { Menu, Search as SearchIcon, RefreshCw, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, Search as SearchIcon, ArrowLeft } from 'lucide-react';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { useDomains } from '@/hooks/useDomains';
 import { useFolders } from '@/hooks/useFolders';
@@ -11,6 +11,7 @@ import { SearchBar } from '@/components/ui/SearchBar';
 interface MobileTopBarProps {
   onOpenDrawer: () => void;
   onSync: () => Promise<void>;
+  unreadOnly?: boolean;
 }
 
 const VIEW_TITLE: Record<string, string> = {
@@ -22,7 +23,7 @@ const VIEW_TITLE: Record<string, string> = {
   archive: 'Archive',
 };
 
-export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
+export function MobileTopBar({ onOpenDrawer, onSync, unreadOnly = false }: MobileTopBarProps) {
   const { activeDomain } = useDomains();
   const { folders } = useFolders();
   const {
@@ -36,17 +37,6 @@ export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
     runSearch,
   } = useEmails();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      await onSync();
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const inDetail = Boolean(selectedEmail);
   const title = currentView.startsWith('folder:')
     ? folders.find((folder) => currentView === `folder:${folder.id}`)?.name ?? 'Folder'
@@ -57,34 +47,28 @@ export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
     return <div className="pt-safe bg-surface" />;
   }
 
+  void onSync;
+
   return (
-    <header className="sticky top-0 z-30 bg-surface/90 backdrop-blur border-b border-line pt-safe">
-      <div className="flex items-center gap-2 px-3 py-2 min-h-14">
+    <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur border-b border-line pt-safe">
+      <div className="flex items-center gap-2 px-3 pt-2 pb-1 min-h-12">
         <button
           type="button"
           onClick={onOpenDrawer}
-          aria-label="Open menu"
-          className="h-10 w-10 inline-flex items-center justify-center rounded-full text-ink hover:bg-line/40"
+          aria-label="Open mailboxes"
+          className="h-10 inline-flex items-center rounded-full pr-2 text-accent hover:bg-accent/10"
         >
-          <Menu className="w-5 h-5" />
+          <ChevronLeft className="w-6 h-6" />
+          <span className="text-[20px] leading-none">Mailboxes</span>
         </button>
 
-        <div className="flex-1 min-w-0">
-          <div className="text-base font-semibold text-ink truncate leading-tight">
-            {title}
-          </div>
-          {activeDomain && (
-            <div className="text-[11px] text-ink-subtle truncate leading-tight">
-              {activeDomain.name}
-            </div>
-          )}
-        </div>
+        <div className="flex-1" />
 
         <button
           type="button"
           onClick={() => setSelectionMode(!isSelectionMode)}
           disabled={!activeDomain}
-          className="h-10 px-2 inline-flex items-center justify-center rounded-full text-accent text-sm font-medium hover:bg-accent/10 disabled:opacity-40"
+          className="h-10 px-5 inline-flex items-center justify-center rounded-full bg-line/50 text-accent text-[17px] font-semibold hover:bg-line disabled:opacity-40"
         >
           {isSelectionMode ? 'Done' : 'Select'}
         </button>
@@ -100,16 +84,17 @@ export function MobileTopBar({ onOpenDrawer, onSync }: MobileTopBarProps) {
         >
           <SearchIcon className="w-5 h-5" />
         </button>
+      </div>
 
-        <button
-          type="button"
-          onClick={handleSync}
-          disabled={isSyncing || !activeDomain}
-          aria-label="Sync"
-          className="h-10 w-10 inline-flex items-center justify-center rounded-full text-ink hover:bg-line/40 disabled:opacity-40"
-        >
-          <RefreshCw className={clsx('w-5 h-5', isSyncing && 'animate-spin')} />
-        </button>
+      <div className="px-4 pb-3">
+        <h1 className="text-[38px] leading-[44px] font-bold tracking-normal text-ink truncate">
+          {unreadOnly ? 'Unread' : title}
+        </h1>
+        {activeDomain && (
+          <div className="text-xs text-ink-subtle truncate mt-0.5">
+            {activeDomain.name}
+          </div>
+        )}
       </div>
 
       {searchOpen && (
