@@ -8,6 +8,9 @@ export const domains = pgTable('domains', {
   createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()),
   isActive: boolean('is_active').notNull().default(true),
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  // Saved "from" addresses for this domain, e.g. ["evan@trainingdojo.app", "support@trainingdojo.app"].
+  // Stored as JSON-stringified array (matches the convention used for emails.to/cc/bcc).
+  aliases: text('aliases'),
 }, (table) => ({
   nameIdx: index('name_idx').on(table.name),
 }));

@@ -16,11 +16,10 @@ export function LoadingSpinner({ size = 'md', className }: LoadingSpinnerProps) 
   return (
     <div
       className={clsx(
-        'inline-block border-gray-300 border-t-accent animate-spin',
+        'inline-block rounded-full border-line border-t-accent animate-spin',
         sizes[size],
         className
       )}
-      style={{ borderRadius: '50%' }} // Exception for spinner circle
     />
   );
 }

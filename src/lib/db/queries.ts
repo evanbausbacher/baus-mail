@@ -42,25 +42,29 @@ export async function getDomainByRecipientAddresses(recipients: string[]): Promi
 }
 
 export async function createDomain(input: CreateDomainInput): Promise<Domain> {
-  const newDomain = {
-    id: crypto.randomUUID(),
-    name: input.name,
-    apiKey: input.apiKey,
-    createdAt: new Date(),
-    isActive: true,
-    lastSyncedAt: null,
-  };
+  const id = crypto.randomUUID();
+  const createdAt = new Date();
+  const aliases = input.aliases ?? [];
 
   await db.insert(domains).values({
-    id: newDomain.id,
-    name: newDomain.name,
-    apiKey: newDomain.apiKey,
-    createdAt: newDomain.createdAt,
+    id,
+    name: input.name,
+    apiKey: input.apiKey,
+    createdAt,
     isActive: true,
     lastSyncedAt: null,
+    aliases: JSON.stringify(aliases),
   });
 
-  return newDomain;
+  return {
+    id,
+    name: input.name,
+    apiKey: input.apiKey,
+    createdAt,
+    isActive: true,
+    lastSyncedAt: null,
+    aliases,
+  };
 }
 
 export async function updateDomain(id: string, input: UpdateDomainInput): Promise<Domain | null> {
@@ -69,6 +73,7 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
   if (input.name !== undefined) updates.name = input.name;
   if (input.apiKey !== undefined) updates.apiKey = input.apiKey;
   if (input.isActive !== undefined) updates.isActive = input.isActive;
+  if (input.aliases !== undefined) updates.aliases = JSON.stringify(input.aliases);
 
   if (Object.keys(updates).length === 0) {
     return getDomainById(id);
@@ -438,6 +443,16 @@ function mapDomainFromDb(row: DomainRow): Domain {
     return new Date(String(value));
   };
 
+  let aliases: string[] = [];
+  if (row.aliases) {
+    try {
+      const parsed = JSON.parse(row.aliases);
+      if (Array.isArray(parsed)) aliases = parsed.filter((v): v is string => typeof v === "string");
+    } catch {
+      aliases = [];
+    }
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -445,6 +460,7 @@ function mapDomainFromDb(row: DomainRow): Domain {
     createdAt: toDate(row.createdAt),
     isActive: Boolean(row.isActive),
     lastSyncedAt: row.lastSyncedAt ? toDate(row.lastSyncedAt) : null,
+    aliases,
   };
 }
 

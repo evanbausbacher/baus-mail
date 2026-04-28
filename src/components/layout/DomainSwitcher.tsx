@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 
+/**
+ * Desktop sidebar domain switcher. On mobile, the drawer renders its own
+ * domain list so this component is desktop-only.
+ */
 export function DomainSwitcher() {
   const { domains, activeDomain, setActiveDomain, addDomain } = useDomains();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -17,16 +21,13 @@ export function DomainSwitcher() {
 
   const handleDomainChange = (domainId: string) => {
     const domain = domains.find((d) => d.id === domainId);
-    if (domain) {
-      setActiveDomain(domain);
-    }
+    if (domain) setActiveDomain(domain);
   };
 
   const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
-
     try {
       await addDomain(newDomainName, newDomainApiKey);
       setIsAddModalOpen(false);
@@ -39,131 +40,55 @@ export function DomainSwitcher() {
     }
   };
 
-  if (domains.length === 0) {
-    return (
-      <div className="p-4">
-        <Button
-          variant="primary"
-          onClick={() => setIsAddModalOpen(true)}
-          className="w-full"
-        >
-          Add First Domain
-        </Button>
-
-        <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          title="Add Domain"
-        >
-          <form onSubmit={handleAddDomain} className="space-y-4">
-            <Input
-              label="Domain Name"
-              type="text"
-              placeholder="example.com"
-              value={newDomainName}
-              onChange={(e) => setNewDomainName(e.target.value)}
-              required
-            />
-
-            <Input
-              label="Resend API Key"
-              type="password"
-              placeholder="re_xxxxxxxxxxxxx"
-              value={newDomainApiKey}
-              onChange={(e) => setNewDomainApiKey(e.target.value)}
-              required
-            />
-
-            {error && (
-              <p className="text-sm text-red-600">{error}</p>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting}
-                className="flex-1"
-              >
-                {isSubmitting ? 'Adding...' : 'Add Domain'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsAddModalOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      </div>
-    );
-  }
+  const showSelector = domains.length > 0;
 
   return (
-    <div className="p-4 space-y-2">
-      <Select
-        options={domains.map((d) => ({
-          value: d.id,
-          label: d.name,
-        }))}
-        value={activeDomain?.id || ''}
-        onChange={(e) => handleDomainChange(e.target.value)}
-      />
+    <div className="px-4 py-3 border-b border-line">
+      {showSelector ? (
+        <Select
+          options={domains.map((d) => ({ value: d.id, label: d.name }))}
+          value={activeDomain?.id || ''}
+          onChange={(e) => handleDomainChange(e.target.value)}
+        />
+      ) : null}
 
       <Button
         variant="ghost"
         onClick={() => setIsAddModalOpen(true)}
-        className="w-full text-sm"
+        className="w-full mt-2 text-sm"
       >
-        + Add Domain
+        {showSelector ? '+ Add mailbox' : 'Add first mailbox'}
       </Button>
 
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Add Domain"
+        title="Add mailbox"
+        fullScreenOnMobile={false}
       >
         <form onSubmit={handleAddDomain} className="space-y-4">
           <Input
-            label="Domain Name"
+            label="Domain"
             type="text"
             placeholder="example.com"
             value={newDomainName}
             onChange={(e) => setNewDomainName(e.target.value)}
             required
           />
-
           <Input
-            label="Resend API Key"
+            label="Resend API key"
             type="password"
             placeholder="re_xxxxxxxxxxxxx"
             value={newDomainApiKey}
             onChange={(e) => setNewDomainApiKey(e.target.value)}
             required
           />
-
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
-
-          <div className="flex gap-2">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {isSubmitting ? 'Adding...' : 'Add Domain'}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" variant="primary" disabled={isSubmitting} className="flex-1">
+              {isSubmitting ? 'Adding…' : 'Add mailbox'}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsAddModalOpen(false)}
-              disabled={isSubmitting}
-            >
+            <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
           </div>
