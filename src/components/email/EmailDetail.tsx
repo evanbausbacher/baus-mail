@@ -195,10 +195,10 @@ export function EmailDetail({ email }: { email: Email }) {
           type="button"
           onClick={closeDetail}
           aria-label="Back"
-          className="lg:hidden h-10 shrink-0 inline-flex items-center gap-1 rounded-full pl-2 pr-3 text-accent hover:bg-accent/10"
+          className="lg:hidden h-10 shrink-0 inline-flex items-center rounded-full pr-2 text-accent hover:bg-accent/10"
         >
-          <ChevronLeft className="w-5 h-5" />
-          <span className="text-[15px] font-medium">Inbox</span>
+          <ChevronLeft className="w-6 h-6" />
+          <span className="text-[20px] leading-none">Inbox</span>
         </button>
         <div className="hidden lg:block flex-1 min-w-0">
           <h2 className="text-base lg:text-lg font-semibold text-ink truncate">
