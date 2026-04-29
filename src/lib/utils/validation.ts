@@ -8,12 +8,14 @@ export const createDomainSchema = z.object({
 export const updateDomainSchema = z.object({
   name: z.string().min(1).regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/).optional(),
   isActive: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
   iconUrl: z
     .string()
     .max(350_000)
     .regex(/^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/)
     .nullable()
     .optional(),
+  fromAddresses: z.array(z.string().email()).max(20).optional(),
 });
 
 // Email validation schemas

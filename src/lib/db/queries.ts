@@ -42,8 +42,10 @@ export async function syncDomainsFromConfig(domainNames: string[]): Promise<Doma
           name,
           createdAt: new Date(),
           isActive: true,
+          isDefault: false,
           lastSyncedAt: null,
           iconUrl: null,
+          fromAddresses: JSON.stringify(defaultFromAddresses(name)),
         });
       }
     }
@@ -90,8 +92,10 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
     name: input.name,
     createdAt: new Date(),
     isActive: true,
+    isDefault: false,
     lastSyncedAt: null,
     iconUrl: null,
+    fromAddresses: defaultFromAddresses(input.name),
   };
 
   await db.insert(domains).values({
@@ -99,8 +103,10 @@ export async function createDomain(input: CreateDomainInput): Promise<Domain> {
     name: newDomain.name,
     createdAt: newDomain.createdAt,
     isActive: true,
+    isDefault: false,
     lastSyncedAt: null,
     iconUrl: null,
+    fromAddresses: JSON.stringify(newDomain.fromAddresses),
   });
 
   return newDomain;
@@ -111,13 +117,20 @@ export async function updateDomain(id: string, input: UpdateDomainInput): Promis
 
   if (input.name !== undefined) updates.name = input.name;
   if (input.isActive !== undefined) updates.isActive = input.isActive;
+  if (input.isDefault !== undefined) updates.isDefault = input.isDefault;
   if (input.iconUrl !== undefined) updates.iconUrl = input.iconUrl;
+  if (input.fromAddresses !== undefined) updates.fromAddresses = JSON.stringify(normalizeFromAddresses(input.fromAddresses));
 
   if (Object.keys(updates).length === 0) {
     return getDomainById(id);
   }
 
-  await db.update(domains).set(updates).where(eq(domains.id, id));
+  await db.transaction(async (tx) => {
+    if (input.isDefault === true) {
+      await tx.update(domains).set({ isDefault: false });
+    }
+    await tx.update(domains).set(updates).where(eq(domains.id, id));
+  });
   return getDomainById(id);
 }
 
@@ -568,8 +581,10 @@ function mapDomainFromDb(row: DomainRow): Domain {
     name: row.name,
     createdAt: toDate(row.createdAt),
     isActive: Boolean(row.isActive),
+    isDefault: Boolean(row.isDefault),
     lastSyncedAt: row.lastSyncedAt ? toDate(row.lastSyncedAt) : null,
     iconUrl: row.iconUrl,
+    fromAddresses: parseFromAddresses(row.fromAddresses, row.name),
   };
 }
 
@@ -629,4 +644,32 @@ function mapEmailFromDb(row: EmailRow): Email {
 function extractEmailAddress(value: string): string {
   const match = value.match(/<([^>]+)>/);
   return (match?.[1] ?? value).trim().toLowerCase();
+}
+
+function defaultFromAddresses(domainName: string): string[] {
+  return ["support", "no-reply", "admin"].map((local) => `${local}@${domainName}`);
+}
+
+function normalizeFromAddresses(addresses: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const address of addresses) {
+    const normalized = address.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
+  }
+  return result;
+}
+
+function parseFromAddresses(value: string | null, domainName: string): string[] {
+  if (!value) return defaultFromAddresses(domainName);
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return defaultFromAddresses(domainName);
+    const normalized = normalizeFromAddresses(parsed.filter((item): item is string => typeof item === "string"));
+    return normalized.length > 0 ? normalized : defaultFromAddresses(domainName);
+  } catch {
+    return defaultFromAddresses(domainName);
+  }
 }

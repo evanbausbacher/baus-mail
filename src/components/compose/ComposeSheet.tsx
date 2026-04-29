@@ -50,7 +50,12 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
   const { activeDomain } = useDomains();
   const { refreshEmails, setCurrentView } = useEmails();
 
-  const defaultFrom = activeDomain ? `support@${activeDomain.name}` : '';
+  const fromAddresses = activeDomain?.fromAddresses?.length
+    ? activeDomain.fromAddresses
+    : activeDomain
+      ? [`support@${activeDomain.name}`]
+      : [];
+  const defaultFrom = fromAddresses[0] ?? '';
 
   const initialFromTemplate: TemplateId =
     initial.mode === 'reply' || initial.mode === 'replyAll' ? 'reply' : 'plain';
@@ -70,11 +75,11 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Reset form whenever initial draft changes (open compose -> reply -> etc).
-  const lastInitialRef = useRef<ComposeDraft | null>(null);
+  const lastResetRef = useRef<{ initial: ComposeDraft; defaultFrom: string } | null>(null);
   useEffect(() => {
     if (!isOpen) return;
-    if (lastInitialRef.current === initial) return;
-    lastInitialRef.current = initial;
+    if (lastResetRef.current?.initial === initial && lastResetRef.current.defaultFrom === defaultFrom) return;
+    lastResetRef.current = { initial, defaultFrom };
 
     const startTemplate: TemplateId = initial.mode === 'reply' || initial.mode === 'replyAll' ? 'reply' : 'plain';
     setTemplateId(startTemplate);
@@ -233,7 +238,7 @@ export function ComposeSheet({ isOpen, onClose, initial }: ComposeSheetProps) {
         {tab === 'compose' ? (
           <div className="space-y-4">
             <SendAsPicker
-              aliases={[]}
+              aliases={fromAddresses}
               value={from}
               onChange={setFrom}
               domainFallback={activeDomain?.name}

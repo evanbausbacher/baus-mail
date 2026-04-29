@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -10,7 +10,7 @@ import { useFolders } from '@/hooks/useFolders';
 import type { Domain } from '@/types/domain';
 import type { MailFolder } from '@/types/folder';
 import { DomainAvatar } from '@/components/domain/DomainAvatar';
-import { Folder, Pencil, Trash2, Upload, X } from 'lucide-react';
+import { Check, Folder, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -39,7 +39,7 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Settings" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Settings" size="md">
       <div className="space-y-7 lg:space-y-6">
         <section>
           <div className="mb-3 px-1">
@@ -196,6 +196,11 @@ function DomainRow({ domain }: { domain: Domain }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [fromAddresses, setFromAddresses] = useState(domain.fromAddresses);
+
+  useEffect(() => {
+    setFromAddresses(domain.fromAddresses);
+  }, [domain.fromAddresses]);
 
   const handleIconChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -247,74 +252,142 @@ function DomainRow({ domain }: { domain: Domain }) {
     }
   };
 
+  const handleSetDefault = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateDomain(domain.id, { isDefault: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update default mailbox');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveFromAddresses = async () => {
+    const addresses = fromAddresses
+      .map((address) => address.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (addresses.length === 0) {
+      setError('Add at least one from address.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await updateDomain(domain.id, { fromAddresses: addresses });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save from addresses');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <li className="border-b border-line last:border-b-0 bg-surface">
-      <div className="flex items-center gap-3 px-4 py-3 min-h-[58px]">
-        <DomainAvatar domain={domain} className="h-10 w-10" />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-ink truncate">{domain.name}</div>
-          <div className="text-xs text-ink-subtle truncate">
-            Server configured mailbox
+      <div className="px-4 py-4">
+        <div className="flex items-start gap-3">
+          <DomainAvatar domain={domain} className="h-10 w-10 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <div className="min-w-0 truncate text-sm font-medium text-ink">{domain.name}</div>
+              {domain.isDefault && (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                  <Check className="h-3 w-3" />
+                  Default
+                </span>
+              )}
+            </div>
+            <div className="mt-0.5 text-xs text-ink-subtle">
+              Server configured mailbox
+            </div>
           </div>
-        </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-          className="hidden"
-          onChange={handleIconChange}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={saving}
-          tooltip="Upload mailbox icon"
-        >
-          <Upload className="w-4 h-4" />
-        </Button>
-        {domain.iconUrl && (
+          <div className="flex shrink-0 items-center gap-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+            className="hidden"
+            onChange={handleIconChange}
+          />
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            onClick={handleRemoveIcon}
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
             disabled={saving}
-            tooltip="Remove mailbox icon"
+            className="h-9 w-9"
+            tooltip="Upload mailbox icon"
           >
-            <X className="w-4 h-4" />
+            <Upload className="w-4 h-4" />
           </Button>
-        )}
-
-        {!confirmingDelete ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setConfirmingDelete(true)}
-            className="text-red-600 hover:bg-red-50"
-            tooltip="Delete cached mailbox data"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={saving}>
-              Delete
-            </Button>
+          {domain.iconUrl && (
             <Button
               type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setConfirmingDelete(false)}
+              variant="ghost"
+              size="icon"
+              onClick={handleRemoveIcon}
               disabled={saving}
+              className="h-9 w-9"
+              tooltip="Remove mailbox icon"
             >
-              Cancel
+              <X className="w-4 h-4" />
             </Button>
-          </div>
-        )}
+          )}
+
+          {!confirmingDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setConfirmingDelete(true)}
+              className="h-9 w-9 text-red-600 hover:bg-red-50"
+              tooltip="Delete cached mailbox data"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          ) : (
+            <div className="flex flex-col items-end gap-1">
+              <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={saving}>
+                Delete
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+        <div className="mt-4 space-y-4 pl-0 sm:pl-[52px]">
+          <FromAddressEditor
+            domainName={domain.name}
+            addresses={fromAddresses}
+            onChange={setFromAddresses}
+            onSave={handleSaveFromAddresses}
+            disabled={saving}
+          />
+
+          <Button
+            type="button"
+            variant={domain.isDefault ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={handleSetDefault}
+            disabled={saving || domain.isDefault}
+            className="w-full justify-center sm:w-auto"
+          >
+            {domain.isDefault ? 'Default mailbox' : 'Make default'}
+          </Button>
+        </div>
       </div>
 
       {confirmingDelete && (
@@ -325,6 +398,91 @@ function DomainRow({ domain }: { domain: Domain }) {
 
       {error && <p className="px-4 pb-3 text-sm text-red-600">{error}</p>}
     </li>
+  );
+}
+
+function FromAddressEditor({
+  domainName,
+  addresses,
+  onChange,
+  onSave,
+  disabled,
+}: {
+  domainName: string;
+  addresses: string[];
+  onChange: (addresses: string[]) => void;
+  onSave: () => void;
+  disabled: boolean;
+}) {
+  const setAddress = (index: number, value: string) => {
+    onChange(addresses.map((address, i) => (i === index ? value : address)));
+  };
+
+  const removeAddress = (index: number) => {
+    const next = addresses.filter((_, i) => i !== index);
+    onChange(next.length > 0 ? next : ['']);
+  };
+
+  const addAddress = () => {
+    onChange([...addresses, '']);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <label className="text-xs font-medium text-ink-muted">From addresses</label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={addAddress}
+          disabled={disabled || addresses.length >= 20}
+          className="min-h-8 px-2 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {addresses.map((address, index) => (
+          <div key={index} className="grid grid-cols-[minmax(0,1fr)_40px] gap-2">
+            <input
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              value={address}
+              onChange={(e) => setAddress(index, e.target.value)}
+              placeholder={`support@${domainName}`}
+              className="h-10 min-w-0 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/20"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => removeAddress(index)}
+              disabled={disabled}
+              className="h-10 w-10 text-ink-muted"
+              tooltip="Remove from address"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={onSave}
+        disabled={disabled}
+        className="w-full justify-center sm:w-auto"
+      >
+        <Save className="h-4 w-4" />
+        Save addresses
+      </Button>
+    </div>
   );
 }
 

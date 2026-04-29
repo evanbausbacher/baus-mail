@@ -6,8 +6,10 @@ export const domains = pgTable('domains', {
   name: text('name').notNull().unique(), // e.g., "trainingdojo.app"
   createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()),
   isActive: boolean('is_active').notNull().default(true),
+  isDefault: boolean('is_default').notNull().default(false),
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
   iconUrl: text('icon_url'),
+  fromAddresses: text('from_addresses'),
 }, (table) => ({
   nameIdx: index('name_idx').on(table.name),
 }));

@@ -10,7 +10,7 @@ interface DomainContextType {
   error: string | null;
   setActiveDomain: (domain: Domain) => void;
   refreshDomains: () => Promise<void>;
-  updateDomain: (id: string, updates: { name?: string; isActive?: boolean; iconUrl?: string | null }) => Promise<void>;
+  updateDomain: (id: string, updates: { name?: string; isActive?: boolean; isDefault?: boolean; iconUrl?: string | null; fromAddresses?: string[] }) => Promise<void>;
   deleteDomain: (id: string) => Promise<void>;
 }
 
@@ -36,11 +36,13 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       if (data.configError) {
         setError(data.configError);
       }
-      setDomains(data.domains);
+      const sortedDomains = [...data.domains].sort((a: Domain, b: Domain) => Number(b.isDefault) - Number(a.isDefault));
+      setDomains(sortedDomains);
 
       setActiveDomainState((prev) => {
-        if (!prev) return data.domains[0] || null;
-        return data.domains.find((d: Domain) => d.id === prev.id) || data.domains[0] || null;
+        const defaultDomain = sortedDomains.find((d: Domain) => d.isDefault) || sortedDomains[0] || null;
+        if (!prev) return defaultDomain;
+        return sortedDomains.find((d: Domain) => d.id === prev.id) || defaultDomain;
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch domains');
@@ -52,7 +54,7 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
 
   const updateDomain = useCallback(async (
     id: string,
-    updates: { name?: string; isActive?: boolean; iconUrl?: string | null }
+    updates: { name?: string; isActive?: boolean; isDefault?: boolean; iconUrl?: string | null; fromAddresses?: string[] }
   ) => {
     const response = await fetch(`/api/domains/${id}`, {
       method: 'PUT',

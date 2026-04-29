@@ -175,14 +175,9 @@ export function EmailDetail({ email }: { email: Email }) {
       </div>
       <div
         className="relative z-10 flex flex-col h-full min-h-0 bg-surface"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
         style={{
           transform: `translate3d(${dx}px, 0, 0)`,
           transition: isDragging ? 'none' : 'transform 260ms cubic-bezier(0.32, 0.72, 0, 1)',
-          touchAction: 'pan-y',
         }}
         onClick={() => {
           if (hasDraggedRef.current) return;
@@ -212,7 +207,14 @@ export function EmailDetail({ email }: { email: Email }) {
       </div>
 
       {/* Scrolling content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{ touchAction: 'pan-y' }}
+      >
         <div className="px-4 lg:px-6 pt-4 pb-5 space-y-4 max-w-full overflow-x-hidden">
           <h1 className="lg:hidden text-[24px] leading-8 font-semibold text-ink break-words">
             {email.subject?.trim() ? email.subject : '(No subject)'}
