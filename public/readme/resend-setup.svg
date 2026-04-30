@@ -1,0 +1,33 @@
+<svg width="1080" height="420" viewBox="90 60 1080 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">BausMail Resend setup model</title>
+  <desc id="desc">A server-only configuration diagram showing Resend domain API keys, webhook secrets, Postgres, and BausMail.</desc>
+  <rect width="1280" height="520" fill="#ffffff"/>
+  <path d="M0 80H1280M0 160H1280M0 240H1280M0 320H1280M0 400H1280M0 480H1280M80 0V520M160 0V520M240 0V520M320 0V520M400 0V520M480 0V520M560 0V520M640 0V520M720 0V520M800 0V520M880 0V520M960 0V520M1040 0V520M1120 0V520M1200 0V520" stroke="#e2e8f0"/>
+  <text x="120" y="92" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">Server-side Resend setup</text>
+  <text x="120" y="126" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="18">BausMail reads API keys and webhook secrets from hosting environment variables, then stores mail in Postgres.</text>
+  <rect x="120" y="188" width="290" height="192" rx="12" fill="#0f172a"/>
+  <text x="146" y="230" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">Environment</text>
+  <text x="146" y="270" fill="#93c5fd" font-family="SFMono-Regular, Consolas, monospace" font-size="15">RESEND_DOMAIN_API_KEYS</text>
+  <text x="146" y="304" fill="#e2e8f0" font-family="SFMono-Regular, Consolas, monospace" font-size="15">{"acme.dev":"re_..."}</text>
+  <text x="146" y="338" fill="#93c5fd" font-family="SFMono-Regular, Consolas, monospace" font-size="15">RESEND_WEBHOOK_SECRET</text>
+  <text x="146" y="360" fill="#e2e8f0" font-family="SFMono-Regular, Consolas, monospace" font-size="15">whsec_...</text>
+  <path d="M420 284H514" stroke="#1677f2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M500 268L516 284L500 300" stroke="#1677f2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="536" y="188" width="260" height="192" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="568" y="224" width="54" height="54" rx="12" fill="#2563eb"/>
+  <text x="642" y="246" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">BausMail</text>
+  <text x="642" y="276" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15">Next.js app</text>
+  <text x="568" y="326" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">Uses keys at runtime only</text>
+  <text x="568" y="350" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14">No Resend API keys in app DB</text>
+  <path d="M806 284H900" stroke="#1677f2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M886 268L902 284L886 300" stroke="#1677f2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="922" y="188" width="238" height="192" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="954" y="230" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">Postgres</text>
+  <text x="954" y="270" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15">Domains</text>
+  <text x="954" y="300" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15">Received and sent mail</text>
+  <text x="954" y="330" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15">Folders, threads, state</text>
+  <rect x="536" y="412" width="260" height="48" rx="24" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="574" y="443" fill="#1d4ed8" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">/api/webhooks/resend</text>
+  <path d="M666 404V380" stroke="#1677f2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M650 394L666 410L682 394" stroke="#1677f2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

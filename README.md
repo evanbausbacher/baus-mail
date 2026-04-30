@@ -2,46 +2,26 @@
 
 Self-hosted email for indie devs and founders running multiple apps on Resend.
 
-BausMail is a focused web email client for managing several Resend-powered domains from one dashboard. It is built for small teams and solo operators who want a simple inbox, sent mail, search, threading, and compose flow without wiring a custom admin panel for every product.
+[Live landing page](https://bausmail.evanbausbacher.com) | [Security policy](./SECURITY.md) | [Contributing](./CONTRIBUTING.md)
 
-## Status
+BausMail is a focused web email client for managing several Resend-powered domains from one dashboard. It supports inbox and sent mail, compose/reply/forward, search, threading, webhook ingestion, manual sync, Postgres storage, and allowlisted admin access.
 
-BausMail is open source and currently at `v0.1.0`. It is useful today for trusted self-hosted deployments, but it is still early software. Review the security notes before deploying it with real customer email.
+> Status: early `v0.1.0` software for trusted, self-hosted, single-tenant deployments. Read the security notes before using it with real customer email.
 
-## Features
+## Mockups
 
-- Multi-domain mailbox management for Resend domains
-- Inbox and sent mail views
-- Compose, reply, and forward flows
-- Star, delete, read/unread, and spam actions
-- Search across synced email content
-- Email threading support
-- Resend received and sent webhook ingestion
-- Manual sync fallback for received and sent messages
-- Postgres storage with Drizzle ORM migrations
-- Credentials-based admin access with an email allowlist
+<p align="center">
+  <img src="./public/readme/mockup-desktop.svg" alt="BausMail desktop inbox mockup" width="900">
+</p>
 
-## Tech Stack
-
-- Next.js 16 App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- Postgres
-- Drizzle ORM
-- Auth.js / NextAuth credentials auth
-- Resend API and Svix webhook verification
+<p align="center">
+  <img src="./public/readme/mockup-mobile.svg" alt="BausMail mobile inbox mockup" width="260">
+  <img src="./public/readme/resend-setup.svg" alt="BausMail Resend setup model" width="560">
+</p>
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 20.9 or newer
-- npm
-- Postgres
-- A Resend account with at least one verified domain
-
-### Install
+Prerequisites: Node.js 20.9+, npm, Postgres, and a Resend account with at least one verified domain.
 
 ```bash
 git clone https://github.com/evanbausbacher/baus-mail.git
@@ -59,7 +39,22 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Environment Variables
+## Resend Setup
+
+1. Verify each sending/receiving domain in Resend.
+2. Create a Resend API key for each domain.
+3. Add those keys to the server-only `RESEND_DOMAIN_API_KEYS` JSON object.
+4. Deploy or start BausMail, then sign in with an allowlisted admin email.
+5. In Resend, create a webhook endpoint for `https://your-app.example.com/api/webhooks/resend`.
+6. Subscribe the endpoint to `email.received` and `email.sent`.
+7. Copy the Resend webhook signing secret into `RESEND_WEBHOOK_SECRET`.
+8. Use the sync button in BausMail when you need to backfill or refresh mail.
+
+For multiple webhook endpoints, point each one to the same `/api/webhooks/resend` URL and put every signing secret in `RESEND_WEBHOOK_SECRETS`.
+
+For local webhook testing, expose your dev server with a tunnel and use the public tunnel URL plus `/api/webhooks/resend`.
+
+## Environment
 
 ```bash
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/bausmail
@@ -72,50 +67,30 @@ AUTH_ALLOWED_EMAILS=you@example.com
 AUTH_ADMIN_PASSWORD=replace-with-a-strong-password
 
 RESEND_WEBHOOK_SECRET=whsec_...
-# Optional: use this when you configure multiple Resend webhook endpoints.
 RESEND_WEBHOOK_SECRETS=whsec_...,whsec_...
-RESEND_DOMAIN_API_KEYS='{"example.com":"<resend-api-key-for-example.com>","another-app.com":"<resend-api-key-for-another-app.com>"}'
+RESEND_DOMAIN_API_KEYS='{"example.com":"re_...","another-app.com":"re_..."}'
 
 NEXT_PUBLIC_POLLING_INTERVAL=30000
 ```
 
-Notes:
+Important notes:
 
-- `DATABASE_URL` is required locally. Hosted Postgres providers may expose `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, or `POSTGRES_URL_NON_POOLING`; the app can read those too.
-- `AUTH_ALLOWED_EMAILS` is a comma-separated allowlist for admin sign-in.
+- `AUTH_ALLOWED_EMAILS` is a comma-separated admin sign-in allowlist.
 - `AUTH_ADMIN_PASSWORD` is the shared password for allowed admin emails.
 - `AUTH_SECRET` is required by Auth.js in production.
-- `RESEND_WEBHOOK_SECRET` must match the signing secret from the Resend webhook dashboard for a single endpoint.
-- `RESEND_WEBHOOK_SECRETS` is an optional comma-separated list of signing secrets for multiple Resend webhook endpoints. The route accepts a signature from any configured secret, and `RESEND_WEBHOOK_SECRET` remains supported for existing deployments.
-- `RESEND_DOMAIN_API_KEYS` is a server-only JSON object that maps each domain name to its Resend API key. Domain names are matched case-insensitively.
-
-## Resend Setup
-
-1. Verify each sending/receiving domain in Resend.
-2. Add each domain and API key to `RESEND_DOMAIN_API_KEYS`.
-3. Start BausMail and sign in with an allowed admin email.
-4. In Resend, create a webhook endpoint that points to:
-
-```text
-https://your-app.example.com/api/webhooks/resend
-```
-
-5. Subscribe the endpoint to `email.received` and `email.sent`, then copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
-6. Use the sync button in BausMail to backfill or refresh mail when needed.
-
-If you prefer separate webhook endpoints per domain or event type, point each endpoint to the same `/api/webhooks/resend` URL and put all signing secrets in `RESEND_WEBHOOK_SECRETS`.
-
-For local webhook testing, expose your dev server with a tunnel and set the webhook URL to the public tunnel URL plus `/api/webhooks/resend`.
+- `RESEND_DOMAIN_API_KEYS` maps domain names to Resend API keys and is matched case-insensitively.
+- Resend API keys are read from server environment variables and are not stored in the application database.
+- The webhook route verifies Svix signatures with `RESEND_WEBHOOK_SECRET` or `RESEND_WEBHOOK_SECRETS`.
 
 ## Deployment
 
-BausMail is a standard Next.js app. The included `build:vercel` script runs migrations before building:
+BausMail is a standard Next.js app. For Vercel, set production environment variables first, then use:
 
 ```bash
 npm run build:vercel
 ```
 
-For other hosts, run the migration step during release:
+For other hosts:
 
 ```bash
 npm run db:migrate
@@ -123,19 +98,7 @@ npm run build
 npm run start
 ```
 
-Make sure production environment variables are set in your hosting provider before the first migration.
-
-When upgrading from a database that previously stored Resend API keys, configure `RESEND_DOMAIN_API_KEYS` before running migrations. The migration removes the stored `domains.api_key` column.
-
-## Security Notes
-
-BausMail `v0.1.0` is intended for trusted, self-hosted, single-tenant deployments.
-
-Resend API keys are not stored in the application database. They are read at runtime from the server-only `RESEND_DOMAIN_API_KEYS` environment variable. Keep hosting environment access restricted and use domain-scoped API keys where possible.
-
-The Resend webhook route verifies Svix signatures with `RESEND_WEBHOOK_SECRET` or `RESEND_WEBHOOK_SECRETS`. Do not disable that check in production.
-
-Report vulnerabilities privately using the process in [SECURITY.md](./SECURITY.md).
+If upgrading from an older database that stored Resend API keys, configure `RESEND_DOMAIN_API_KEYS` before running migrations. The migration removes the stored `domains.api_key` column.
 
 ## Development
 
@@ -148,21 +111,16 @@ npm run db:migrate
 npm run db:studio
 ```
 
-## Project Layout
+Project map:
 
 ```text
 src/app/          Next.js pages and API routes
 src/components/   React UI and feature components
-src/hooks/        Client hooks
-src/lib/db/       Drizzle schema, database connection, and queries
+src/lib/db/       Drizzle schema, connection, and queries
 src/lib/resend/   Resend API client and mapping helpers
 src/lib/threading Email threading logic
-drizzle/          SQL migrations and Drizzle metadata
+drizzle/          SQL migrations and metadata
 ```
-
-## Contributing
-
-Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md), open an issue for larger changes, and keep pull requests focused.
 
 ## License
 

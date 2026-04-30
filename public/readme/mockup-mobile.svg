@@ -1,0 +1,40 @@
+<svg width="430" height="820" viewBox="145 45 430 820" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">BausMail mobile inbox mockup</title>
+  <desc id="desc">A narrow mobile mailbox interface showing mailboxes, inbox messages, and sync state.</desc>
+  <rect width="720" height="920" fill="#f8fafc"/>
+  <path d="M0 80H720M0 160H720M0 240H720M0 320H720M0 400H720M0 480H720M0 560H720M0 640H720M0 720H720M0 800H720M80 0V920M160 0V920M240 0V920M320 0V920M400 0V920M480 0V920M560 0V920M640 0V920" stroke="#e2e8f0"/>
+  <rect x="182" y="72" width="356" height="776" rx="32" fill="#0f172a"/>
+  <rect x="198" y="96" width="324" height="728" rx="24" fill="#ffffff"/>
+  <rect x="322" y="116" width="76" height="8" rx="4" fill="#cbd5e1"/>
+  <text x="230" y="176" fill="#1677f2" font-family="Inter, Arial, sans-serif" font-size="15">Mailboxes</text>
+  <circle cx="480" cy="170" r="9" stroke="#0f172a" stroke-width="3"/>
+  <path d="M488 178L502 192" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+  <text x="230" y="234" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">Inbox</text>
+  <rect x="230" y="258" width="14" height="14" rx="4" fill="#fed7aa"/>
+  <text x="254" y="270" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14">acme.dev</text>
+  <path d="M198 304H522" stroke="#e2e8f0"/>
+  <circle cx="236" cy="354" r="24" fill="#99f6e4"/>
+  <text x="226" y="362" fill="#0f766e" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">AM</text>
+  <text x="282" y="338" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">ari@acme.dev</text>
+  <text x="446" y="338" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">2m ago</text>
+  <text x="282" y="363" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15">Webhook delivery...</text>
+  <text x="282" y="388" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13">The inbound event...</text>
+  <path d="M230 420H490" stroke="#e2e8f0"/>
+  <circle cx="236" cy="470" r="24" fill="#bfdbfe"/>
+  <text x="227" y="478" fill="#1d4ed8" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">LK</text>
+  <text x="282" y="454" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">support@launch...</text>
+  <text x="450" y="454" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">11m ago</text>
+  <text x="282" y="479" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15">Re: Welcome seq...</text>
+  <text x="282" y="504" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13">Thanks for the...</text>
+  <path d="M230 536H490" stroke="#e2e8f0"/>
+  <circle cx="236" cy="586" r="24" fill="#ddd6fe"/>
+  <text x="226" y="594" fill="#7c3aed" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">NP</text>
+  <text x="282" y="570" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">nora@example.com</text>
+  <text x="454" y="570" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">Today</text>
+  <text x="282" y="595" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15">Question about on...</text>
+  <text x="282" y="620" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13">Can you confirm...</text>
+  <rect x="226" y="704" width="268" height="74" rx="14" fill="#f8fafc" stroke="#e2e8f0"/>
+  <circle cx="253" cy="741" r="9" stroke="#1677f2" stroke-width="3"/>
+  <text x="296" y="730" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Updated just now</text>
+  <text x="324" y="752" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">0 unread</text>
+</svg>

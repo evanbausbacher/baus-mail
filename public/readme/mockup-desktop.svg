@@ -1,0 +1,79 @@
+<svg width="1080" height="640" viewBox="120 60 1080 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">BausMail desktop inbox mockup</title>
+  <desc id="desc">A desktop mailbox interface with a domain sidebar, message list, and selected email detail pane.</desc>
+  <rect width="1280" height="760" fill="#f8fafc"/>
+  <path d="M0 80H1280M0 160H1280M0 240H1280M0 320H1280M0 400H1280M0 480H1280M0 560H1280M0 640H1280M80 0V760M160 0V760M240 0V760M320 0V760M400 0V760M480 0V760M560 0V760M640 0V760M720 0V760M800 0V760M880 0V760M960 0V760M1040 0V760M1120 0V760M1200 0V760" stroke="#e2e8f0"/>
+  <rect x="152" y="86" width="976" height="588" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="152" y="86" width="976" height="36" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+  <circle cx="179" cy="104" r="5" fill="#fb7185"/>
+  <circle cx="197" cy="104" r="5" fill="#fbbf24"/>
+  <circle cx="215" cy="104" r="5" fill="#34d399"/>
+  <rect x="468" y="99" width="344" height="10" rx="5" fill="#ffffff"/>
+  <rect x="152" y="122" width="248" height="552" fill="#ffffff"/>
+  <rect x="400" y="122" width="376" height="552" fill="#ffffff"/>
+  <rect x="776" y="122" width="352" height="552" fill="#ffffff"/>
+  <path d="M400 122V674M776 122V674" stroke="#cbd5e1"/>
+  <rect x="182" y="154" width="36" height="36" rx="8" fill="#2563eb"/>
+  <text x="232" y="174" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">BausMail</text>
+  <text x="232" y="194" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">Self-hosted</text>
+  <rect x="182" y="236" width="180" height="46" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <circle cx="207" cy="259" r="14" fill="#fed7aa"/>
+  <text x="203" y="264" fill="#9a3412" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">A</text>
+  <text x="230" y="263" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14">acme.dev</text>
+  <rect x="182" y="304" width="180" height="42" rx="8" fill="#1677f2"/>
+  <text x="247" y="330" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Compose</text>
+  <rect x="182" y="366" width="180" height="36" rx="8" fill="#eff6ff"/>
+  <text x="222" y="389" fill="#1677f2" font-family="Inter, Arial, sans-serif" font-size="14">Inbox</text>
+  <text x="222" y="437" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14">Sent</text>
+  <text x="222" y="485" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14">Starred</text>
+  <text x="222" y="533" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14">Archive</text>
+  <text x="222" y="581" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14">Trash</text>
+  <rect x="182" y="596" width="180" height="54" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="206" y="621" fill="#15803d" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">Server env keys</text>
+  <text x="206" y="640" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="11">No API keys in database</text>
+  <text x="430" y="170" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">Inbox</text>
+  <text x="708" y="170" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13">12 emails</text>
+  <rect x="430" y="204" width="306" height="44" rx="22" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="470" y="231" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="14">Search emails...</text>
+  <rect x="430" y="278" width="306" height="78" fill="#f8fafc"/>
+  <circle cx="456" cy="317" r="18" fill="#99f6e4"/>
+  <text x="448" y="323" fill="#0f766e" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">AM</text>
+  <text x="490" y="304" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">ari@acme.dev</text>
+  <text x="490" y="326" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14">Webhook delivery test</text>
+  <text x="490" y="348" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">The inbound event landed...</text>
+  <path d="M430 356H736" stroke="#e2e8f0"/>
+  <circle cx="456" cy="397" r="18" fill="#bfdbfe"/>
+  <text x="449" y="403" fill="#1d4ed8" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">LK</text>
+  <text x="490" y="385" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">support@launchkit.app</text>
+  <text x="490" y="407" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14">Re: Welcome sequence</text>
+  <text x="490" y="429" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">Thanks for the notes...</text>
+  <path d="M430 438H736" stroke="#e2e8f0"/>
+  <circle cx="456" cy="479" r="18" fill="#ddd6fe"/>
+  <text x="448" y="485" fill="#7c3aed" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">NP</text>
+  <text x="490" y="466" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">nora@example.com</text>
+  <text x="490" y="488" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14">Question about onboarding</text>
+  <text x="490" y="510" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">Can you confirm...</text>
+  <path d="M430 520H736" stroke="#e2e8f0"/>
+  <circle cx="456" cy="560" r="18" fill="#e2e8f0"/>
+  <text x="448" y="566" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">AC</text>
+  <text x="490" y="548" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">alerts@acme.dev</text>
+  <text x="490" y="570" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14">Domain verification complete</text>
+  <text x="490" y="592" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="12">DNS records verified...</text>
+  <text x="812" y="202" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Re: Welcome sequence</text>
+  <circle cx="818" cy="282" r="22" fill="#bfdbfe"/>
+  <text x="809" y="289" fill="#1d4ed8" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">LK</text>
+  <text x="856" y="274" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">LaunchKit Support</text>
+  <text x="856" y="296" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13">to support@acme.dev</text>
+  <rect x="812" y="336" width="220" height="42" rx="8" fill="#f8fafc"/>
+  <text x="840" y="363" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Rich</text>
+  <text x="910" y="363" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14">Text</text>
+  <text x="812" y="430" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="15">Hi there,</text>
+  <text x="812" y="474" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="15">Thanks for the setup notes. The webhook events</text>
+  <text x="812" y="498" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="15">are threading cleanly across the shared support</text>
+  <text x="812" y="522" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="15">address.</text>
+  <text x="812" y="570" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="15">Ready for launch.</text>
+  <rect x="812" y="616" width="98" height="40" rx="8" fill="#1677f2"/>
+  <text x="842" y="642" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Reply</text>
+  <rect x="926" y="616" width="114" height="40" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="960" y="642" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Forward</text>
+</svg>
