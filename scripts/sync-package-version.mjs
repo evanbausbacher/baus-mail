@@ -8,6 +8,7 @@ if (!match) {
 }
 
 const version = match[1];
+const versionTag = `v${version}`;
 
 for (const file of ['package.json', 'package-lock.json']) {
   const json = JSON.parse(readFileSync(file, 'utf8'));
@@ -21,4 +22,16 @@ for (const file of ['package.json', 'package-lock.json']) {
   writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
 }
 
-console.log(`Synced package metadata to ${version}`);
+const readme = readFileSync('README.md', 'utf8')
+  .replace(
+    /currently at `v[^`]+`/,
+    `currently at \`${versionTag}\``
+  )
+  .replace(
+    /BausMail `v[^`]+` is intended/,
+    `BausMail \`${versionTag}\` is intended`
+  );
+
+writeFileSync('README.md', readme);
+
+console.log(`Synced package metadata and README to ${version}`);

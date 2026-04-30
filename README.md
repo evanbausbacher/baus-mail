@@ -158,7 +158,6 @@ src/lib/db/       Drizzle schema, database connection, and queries
 src/lib/resend/   Resend API client and mapping helpers
 src/lib/threading Email threading logic
 drizzle/          SQL migrations and Drizzle metadata
-docs/             Project notes and reference material
 ```
 
 ## Contributing
