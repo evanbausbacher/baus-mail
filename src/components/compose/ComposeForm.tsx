@@ -183,7 +183,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     setQuotedHeader(replyParts.quotedHeader);
     setQuotedBody(replyParts.quotedBody);
     setShowCcBcc((initial.cc?.length ?? 0) > 0 || (initial.bcc?.length ?? 0) > 0);
-    setQuoteCollapsed(false);
+    setQuoteCollapsed(true);
     setError(null);
   }, [defaultFrom, initial]);
 
@@ -228,17 +228,6 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     setError(null);
 
     try {
-      const previewRes = await fetch('/api/email-templates/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(previewPayload),
-      });
-      if (!previewRes.ok) {
-        const data = await previewRes.json().catch(() => null);
-        throw new Error(data?.error || 'Failed to render email');
-      }
-      const html = await previewRes.text();
-
       const payload = {
         domainId: activeDomain.id,
         from: from.trim(),
@@ -246,7 +235,6 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
         cc: showCcBcc && cc.trim() ? parseEmailCsv(cc) : undefined,
         bcc: showCcBcc && bcc.trim() ? parseEmailCsv(bcc) : undefined,
         subject: subject.trim(),
-        html,
         text: textPayload || undefined,
         inReplyTo: initial.inReplyTo ?? undefined,
         references: initial.references ?? undefined,
