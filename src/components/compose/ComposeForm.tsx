@@ -199,7 +199,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     return () => window.cancelAnimationFrame(id);
   }, [initial, tab, mode]);
 
-  const previewMode = quotedHeader || quotedBody ? 'reply' : 'plain';
+  const previewMode: 'plain' | 'reply' = quotedHeader || quotedBody ? 'reply' : 'plain';
   const previewPayload = useMemo(
     () => ({
       mode: previewMode,
