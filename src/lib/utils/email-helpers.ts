@@ -43,12 +43,23 @@ export function stripHtml(html: string): string {
     .trim();
 }
 
-function normalizeBodyForLlm(email: Email): string {
-  const text = email.text?.trim();
-  if (text) return text.replace(/\r\n?/g, '\n').replace(/^>\s?/gm, '');
+function sanitizeCopiedBody(value: string): string {
+  return value
+    .replace(/\r\n?/g, '\n')
+    .replace(/^>\s?/gm, '')
+    .replace(/>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
-  const stripped = stripHtml(email.html ?? '');
-  return stripped ? stripped.replace(/\r\n?/g, '\n').replace(/^>\s?/gm, '') : 'No content';
+function normalizeBodyForLlm(email: Email, opts?: { stripQuotedHistory?: boolean }): string {
+  const source = email.text?.trim() ? email.text : stripHtml(email.html ?? '');
+  if (!source) return 'No content';
+
+  const parts = splitReplyContent(source);
+  const preferred = opts?.stripQuotedHistory && parts.body ? parts.body : source;
+  const normalized = sanitizeCopiedBody(preferred);
+  return normalized || 'No content';
 }
 
 function formatMarkdownList(label: string, value: string): string {
@@ -66,6 +77,7 @@ export function formatEmailThreadForLlm(threadEmails: Email[], subject?: string)
   if (!sorted.length) return `# Email Thread: ${title}`;
 
   const sections = sorted.map((email, index) => {
+    const body = normalizeBodyForLlm(email, { stripQuotedHistory: sorted.length > 1 });
     const lines = [
       `## ${email.type === 'sent' ? 'Sent' : 'Received'}`,
       '',
@@ -75,7 +87,7 @@ export function formatEmailThreadForLlm(threadEmails: Email[], subject?: string)
       ...(email.cc?.length ? [formatMarkdownList('Cc', email.cc.join(', '))] : []),
       formatMarkdownList('Date', email.createdAt.toISOString()),
       '',
-      normalizeBodyForLlm(email),
+      body,
     ];
 
     return lines.join('\n');

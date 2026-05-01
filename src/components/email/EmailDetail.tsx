@@ -34,7 +34,7 @@ export function EmailDetail({ email }: { email: Email }) {
   const hasDraggedRef = useRef(false);
   const copyResetTimeoutRef = useRef<number | null>(null);
   const { openComposeReply, openComposeReplyAll, openComposeForward, setSelectedEmail } = useEmails();
-  const { act, archive, toggleRead, toggleStar } = useEmailActions();
+  const { act, archive, toggleRead, toggleSpam, toggleStar, trash } = useEmailActions();
   const { threadEmails, isLoading: isThreadLoading, error: threadError } = useEmailThread(email);
 
   // Guard so we only fire markRead once per email.id, regardless of `act`
@@ -249,7 +249,12 @@ export function EmailDetail({ email }: { email: Email }) {
         </div>
         <div className="flex-1 lg:hidden" />
         <div className="min-w-0 shrink-0">
-          <EmailActions email={email} onCopyForLlm={copyThreadForLlm} copyState={copyState} />
+          <EmailActions
+            email={email}
+            onCopyForLlm={copyThreadForLlm}
+            copyState={copyState}
+            onOpenMore={() => setMoreOpen(true)}
+          />
         </div>
       </div>
 
@@ -388,10 +393,16 @@ export function EmailDetail({ email }: { email: Email }) {
         <ActionSheetButton onClick={() => { copyThreadForLlm(); setMoreOpen(false); }}>
           {copyState === 'success' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy for LLM'}
         </ActionSheetButton>
-        <ActionSheetButton onClick={() => { toggleStar(email); setMoreOpen(false); }}>{email.isStarred ? 'Unflag' : 'Flag'}</ActionSheetButton>
-        <ActionSheetButton onClick={() => { archive(email); setMoreOpen(false); }}>Archive</ActionSheetButton>
-        <ActionSheetButton onClick={() => { act([email.id], email.isRead ? 'markUnread' : 'markRead'); setMoreOpen(false); }}>
+        <ActionSheetButton onClick={() => { toggleRead(email); setMoreOpen(false); }}>
           {email.isRead ? 'Mark as Unread' : 'Mark as Read'}
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => { toggleStar(email); setMoreOpen(false); }}>{email.isStarred ? 'Unflag' : 'Flag'}</ActionSheetButton>
+        <ActionSheetButton onClick={() => { toggleSpam(email); setMoreOpen(false); }}>
+          {email.isSpam ? 'Not spam' : 'Mark as spam'}
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => { archive(email); setMoreOpen(false); }}>Archive</ActionSheetButton>
+        <ActionSheetButton tone="danger" onClick={() => { trash(email); setMoreOpen(false); }}>
+          Delete
         </ActionSheetButton>
       </ActionSheet>
     </div>
