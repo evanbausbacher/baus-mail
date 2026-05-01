@@ -3,13 +3,39 @@
 import type { Email } from '@/types/email';
 import { Button } from '@/components/ui/Button';
 import { useEmailActions } from '@/hooks/useEmailActions';
-import { Archive, Star, Trash2, AlertOctagon, MailOpen, Mail } from 'lucide-react';
+import { Archive, Star, Trash2, AlertOctagon, MailOpen, Mail, Copy, Check } from 'lucide-react';
 
-export function EmailActions({ email }: { email: Email }) {
+type CopyState = 'idle' | 'success' | 'error';
+
+interface EmailActionsProps {
+  email: Email;
+  onCopyForLlm?: () => void;
+  copyState?: CopyState;
+}
+
+export function EmailActions({
+  email,
+  onCopyForLlm,
+  copyState = 'idle',
+}: EmailActionsProps) {
   const { isActing, toggleStar, toggleSpam, toggleRead, trash, archive } = useEmailActions();
+  const copyLabel = copyState === 'success' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy';
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {onCopyForLlm ? (
+        <Button
+          variant={copyState === 'error' ? 'danger' : copyState === 'success' ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={onCopyForLlm}
+          aria-label="Copy thread for LLM"
+          tooltip="Copy thread for LLM"
+          className="shrink-0"
+        >
+          {copyState === 'success' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          <span>{copyLabel}</span>
+        </Button>
+      ) : null}
       <Button variant="ghost" onClick={() => toggleStar(email)} disabled={isActing} aria-label="Star" tooltip={email.isStarred ? 'Unstar' : 'Star'}>
         <Star className="w-4 h-4" fill={email.isStarred ? 'currentColor' : 'none'} />
       </Button>

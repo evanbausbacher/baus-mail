@@ -1,3 +1,5 @@
+import type { Email } from '@/types/email';
+
 // Email parsing and formatting utilities
 
 export function parseEmailAddress(email: string): { name?: string; address: string } {
@@ -39,6 +41,51 @@ export function stripHtml(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function normalizeBodyForLlm(email: Email): string {
+  const text = email.text?.trim();
+  if (text) return text.replace(/\r\n?/g, '\n');
+
+  const stripped = stripHtml(email.html ?? '');
+  return stripped ? stripped.replace(/\r\n?/g, '\n') : 'No content';
+}
+
+function formatMarkdownList(label: string, value: string): string {
+  return `- **${label}:** ${value}`;
+}
+
+function formatThreadSubject(subject?: string | null): string {
+  const normalized = subject?.trim();
+  return normalized ? normalized : '(No subject)';
+}
+
+export function formatEmailThreadForLlm(threadEmails: Email[], subject?: string): string {
+  const sorted = [...threadEmails].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const title = formatThreadSubject(subject ?? sorted[0]?.subject);
+  if (!sorted.length) return `# Email Thread: ${title}`;
+
+  const sections = sorted.map((email, index) => {
+    const lines = [
+      `## Message ${index + 1}`,
+      '',
+      formatMarkdownList('From', email.from),
+      formatMarkdownList('To', email.to?.length ? email.to.join(', ') : '(none)'),
+      ...(email.cc?.length ? [formatMarkdownList('Cc', email.cc.join(', '))] : []),
+      formatMarkdownList('Date', email.createdAt.toISOString()),
+      formatMarkdownList('Type', email.type),
+      '',
+      '### Body',
+      '',
+      '````text',
+      normalizeBodyForLlm(email),
+      '````',
+    ];
+
+    return lines.join('\n');
+  });
+
+  return `# Email Thread: ${title}\n\n${sections.join('\n\n---\n\n')}`;
 }
 
 export interface ReplyContentParts {
