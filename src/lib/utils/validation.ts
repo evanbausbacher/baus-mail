@@ -24,7 +24,6 @@ export const sendEmailSchema = z.object({
   from: z.string().email(),
   to: z.array(z.string().email()).min(1, 'At least one recipient is required').max(50),
   subject: z.string().min(1, 'Subject is required'),
-  html: z.string().optional(),
   text: z.string().optional(),
   cc: z.array(z.string().email()).optional(),
   bcc: z.array(z.string().email()).optional(),

@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { render } from '@react-email/render';
-import { getTemplate, type TemplateId } from '@/lib/email-templates';
+import { Plain } from '@/lib/email-templates/Plain';
+import { Reply } from '@/lib/email-templates/Reply';
 import { z } from 'zod';
 import { createElement } from 'react';
 
 const previewSchema = z.object({
-  templateId: z.enum(['plain', 'marketing', 'transactional', 'reply']),
-  props: z.record(z.unknown()).optional(),
+  mode: z.enum(['plain', 'reply']),
+  body: z.string().optional(),
+  quotedHeader: z.string().optional(),
+  quotedBody: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const parsed = previewSchema.safeParse(body);
+    const requestBody = await request.json();
+    const parsed = previewSchema.safeParse(requestBody);
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: parsed.error.issues },
@@ -20,10 +23,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { templateId, props } = parsed.data;
-    const def = getTemplate(templateId as TemplateId);
-    const Component = def.Component;
-    const merged = { ...def.defaultProps, ...(props ?? {}) };
+    const { body: messageBody, mode, quotedBody, quotedHeader } = parsed.data;
+    const Component = mode === 'reply' ? Reply : Plain;
+    const merged = mode === 'reply'
+      ? { body: messageBody ?? '', quotedBody: quotedBody ?? '', quotedHeader: quotedHeader ?? '' }
+      : { body: messageBody ?? '' };
 
     const html = await render(createElement(Component, merged), { pretty: false });
 
