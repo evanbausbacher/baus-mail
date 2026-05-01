@@ -78,6 +78,7 @@
     line-height: 1.55;
     word-wrap: break-word;
     overflow-wrap: anywhere;
+    max-width: 100%;
   }
   .email-html img {
     max-width: 100%;
@@ -85,6 +86,9 @@
   }
   .email-html table {
     max-width: 100% !important;
+  }
+  .email-html :where(div, section, article, table, tbody, thead, tfoot, tr, td, th) {
+    max-width: 100%;
   }
   .email-html a {
     color: theme('colors.accent.DEFAULT');
@@ -102,5 +106,36 @@
     padding: 0.75rem;
     border-radius: 0.5rem;
     font-size: 13px;
+  }
+
+  @media (max-width: 1023px) {
+    .email-html {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .email-html table {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+    }
+
+    .email-html img {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    .email-html :where(div, section, article, p, span, td, th) {
+      min-width: 0 !important;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .email-html pre,
+    .email-html code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
   }
 }

@@ -18,6 +18,173 @@ const DETAIL_SWIPE_TRIGGER = 76;
 const DETAIL_FULL_TRIGGER = 220;
 const DETAIL_SWIPE_REVEAL = 240;
 const DETAIL_READ_REVEAL = 92;
+const MOBILE_DETAIL_BREAKPOINT = '(max-width: 1023px)';
+
+function stripFixedWidthStyles(style: CSSStyleDeclaration, properties: string[]) {
+  for (const property of properties) {
+    style.removeProperty(property);
+  }
+}
+
+function transformHtmlForMobile(html: string) {
+  if (typeof window === 'undefined') return html;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  if (!doc.head.querySelector('meta[name="viewport"]')) {
+    const viewport = doc.createElement('meta');
+    viewport.name = 'viewport';
+    viewport.content = 'width=device-width,initial-scale=1';
+    doc.head.appendChild(viewport);
+  }
+
+  const elements = Array.from(doc.body.querySelectorAll<HTMLElement>('*'));
+  for (const element of elements) {
+    const tag = element.tagName.toLowerCase();
+    stripFixedWidthStyles(element.style, ['width', 'min-width', 'max-width']);
+    element.style.setProperty('box-sizing', 'border-box', 'important');
+
+    if (element.hasAttribute('width')) {
+      element.removeAttribute('width');
+    }
+
+    if (tag === 'table') {
+      element.style.setProperty('width', '100%', 'important');
+      element.style.setProperty('max-width', '100%', 'important');
+      element.style.setProperty('min-width', '0', 'important');
+      element.style.setProperty('table-layout', 'fixed', 'important');
+    } else if (tag === 'img') {
+      element.style.setProperty('display', 'block', 'important');
+      element.style.setProperty('max-width', '100%', 'important');
+      element.style.setProperty('width', 'auto', 'important');
+      element.style.setProperty('height', 'auto', 'important');
+    } else {
+      element.style.setProperty('max-width', '100%', 'important');
+      element.style.setProperty('min-width', '0', 'important');
+    }
+
+    if (tag === 'pre' || tag === 'code') {
+      element.style.setProperty('white-space', 'pre-wrap', 'important');
+      element.style.setProperty('overflow-wrap', 'anywhere', 'important');
+      element.style.setProperty('word-break', 'break-word', 'important');
+    }
+
+    if (tag === 'td' || tag === 'th') {
+      element.style.setProperty('word-break', 'break-word', 'important');
+      element.style.setProperty('overflow-wrap', 'anywhere', 'important');
+    }
+  }
+
+  doc.body.style.margin = '0';
+  doc.body.style.maxWidth = '100%';
+  doc.body.style.minWidth = '0';
+  doc.body.style.overflowX = 'hidden';
+
+  const inlineStyles = Array.from(doc.head.querySelectorAll('style'))
+    .map((style) => style.outerHTML)
+    .join('');
+
+  return `${inlineStyles}${doc.body.innerHTML}`;
+}
+
+function ResponsiveEmailHtml({ html }: { html: string }) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [renderedHtml, setRenderedHtml] = useState(html);
+  const [scale, setScale] = useState(1);
+  const [scaledHeight, setScaledHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia(MOBILE_DETAIL_BREAKPOINT);
+    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+
+    updateIsMobile();
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateIsMobile);
+      return () => mediaQuery.removeEventListener('change', updateIsMobile);
+    }
+
+    mediaQuery.addListener(updateIsMobile);
+    return () => mediaQuery.removeListener(updateIsMobile);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setRenderedHtml(html);
+      return;
+    }
+
+    setRenderedHtml(transformHtmlForMobile(html));
+  }, [html, isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setScale(1);
+      setScaledHeight(null);
+      return;
+    }
+
+    const shell = shellRef.current;
+    const content = contentRef.current;
+    if (!shell || !content || typeof window === 'undefined') return;
+
+    let frame = 0;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const availableWidth = shell.clientWidth;
+        if (!availableWidth) return;
+
+        const contentWidth = Math.max(content.scrollWidth, content.offsetWidth);
+        const nextScale = contentWidth > availableWidth ? availableWidth / contentWidth : 1;
+        const nextHeight = nextScale < 1 ? Math.ceil(content.scrollHeight * nextScale) : null;
+
+        setScale((current) => (Math.abs(current - nextScale) < 0.01 ? current : nextScale));
+        setScaledHeight((current) => (current === nextHeight ? current : nextHeight));
+      });
+    };
+    const resizeObserver = new ResizeObserver(measure);
+
+    resizeObserver.observe(shell);
+    resizeObserver.observe(content);
+    measure();
+
+    const images = Array.from(content.querySelectorAll('img'));
+    const handleImageLoad = () => measure();
+    for (const image of images) {
+      image.addEventListener('load', handleImageLoad, { once: true });
+      image.addEventListener('error', handleImageLoad, { once: true });
+    }
+
+    return () => {
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      for (const image of images) {
+        image.removeEventListener('load', handleImageLoad);
+        image.removeEventListener('error', handleImageLoad);
+      }
+    };
+  }, [isMobile, renderedHtml]);
+
+  return (
+    <div
+      ref={shellRef}
+      className="email-html-shell overflow-hidden px-1 py-2 lg:p-5"
+      style={scaledHeight ? { height: scaledHeight } : undefined}
+    >
+      <div
+        ref={contentRef}
+        className="email-html"
+        style={isMobile ? { transform: `scale(${scale})`, transformOrigin: 'top left' } : undefined}
+        dangerouslySetInnerHTML={{ __html: renderedHtml }}
+      />
+    </div>
+  );
+}
 
 export function EmailDetail({ email }: { email: Email }) {
   const [mode, setMode] = useState<'html' | 'text'>('html');
@@ -294,7 +461,7 @@ export function EmailDetail({ email }: { email: Email }) {
                 </details>
               </div>
             ) : mode === 'html' && sanitizedHtml ? (
-              <div className="email-html px-1 py-2 lg:p-5" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+              <ResponsiveEmailHtml html={sanitizedHtml} />
             ) : (
               <pre className="whitespace-pre-wrap font-sans px-1 py-2 lg:p-5 text-[15px] leading-6 text-ink">
                 {textFallback}
