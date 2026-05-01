@@ -14,8 +14,8 @@ const previewSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const parsed = previewSchema.safeParse(body);
+    const requestBody = await request.json();
+    const parsed = previewSchema.safeParse(requestBody);
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: parsed.error.issues },
@@ -23,11 +23,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { body, mode, quotedBody, quotedHeader } = parsed.data;
+    const { body: messageBody, mode, quotedBody, quotedHeader } = parsed.data;
     const Component = mode === 'reply' ? Reply : Plain;
     const merged = mode === 'reply'
-      ? { body: body ?? '', quotedBody: quotedBody ?? '', quotedHeader: quotedHeader ?? '' }
-      : { body: body ?? '' };
+      ? { body: messageBody ?? '', quotedBody: quotedBody ?? '', quotedHeader: quotedHeader ?? '' }
+      : { body: messageBody ?? '' };
 
     const html = await render(createElement(Component, merged), { pretty: false });
 
