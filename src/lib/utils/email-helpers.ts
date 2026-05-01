@@ -1,3 +1,5 @@
+import type { Email } from '@/types/email';
+
 // Email parsing and formatting utilities
 
 export function parseEmailAddress(email: string): { name?: string; address: string } {
@@ -39,6 +41,60 @@ export function stripHtml(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function sanitizeCopiedBody(value: string): string {
+  return value
+    .replace(/\r\n?/g, '\n')
+    .replace(/^>\s?/gm, '')
+    .replace(/>/g, '')
+    .replace(/\nOn .+wrote:\s*$/is, '')
+    .replace(/\nFrom:\s.+$/is, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeBodyForLlm(email: Email, opts?: { stripQuotedHistory?: boolean }): string {
+  const source = email.text?.trim() ? email.text : stripHtml(email.html ?? '');
+  if (!source) return 'No content';
+
+  const parts = splitReplyContent(source);
+  const preferred = opts?.stripQuotedHistory && parts.body ? parts.body : source;
+  const normalized = sanitizeCopiedBody(preferred);
+  return normalized || 'No content';
+}
+
+function formatMarkdownList(label: string, value: string): string {
+  return `- **${label}:** ${value}`;
+}
+
+function formatThreadSubject(subject?: string | null): string {
+  const normalized = subject?.trim();
+  return normalized ? normalized : '(No subject)';
+}
+
+export function formatEmailThreadForLlm(threadEmails: Email[], subject?: string): string {
+  const sorted = [...threadEmails].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const title = formatThreadSubject(subject ?? sorted[0]?.subject);
+  if (!sorted.length) return `# Email Thread: ${title}`;
+
+  const sections = sorted.map((email) => {
+    const body = normalizeBodyForLlm(email, { stripQuotedHistory: sorted.length > 1 });
+    const lines = [
+      `## ${email.type === 'sent' ? 'Sent' : 'Received'}`,
+      '',
+      formatMarkdownList('From', email.from),
+      formatMarkdownList('To', email.to?.length ? email.to.join(', ') : '(none)'),
+      ...(email.cc?.length ? [formatMarkdownList('Cc', email.cc.join(', '))] : []),
+      formatMarkdownList('Date', email.createdAt.toISOString()),
+      '',
+      body,
+    ];
+
+    return lines.join('\n');
+  });
+
+  return `# Email Thread: ${title}\n\n${sections.join('\n\n---\n\n')}`;
 }
 
 export interface ReplyContentParts {

@@ -1,84 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useDomains } from '@/hooks/useDomains';
+import { useMemo } from 'react';
 import { useEmails } from '@/components/providers/EmailProvider';
 import type { Email } from '@/types/email';
-import { buildThreads } from '@/lib/threading/algorithm';
 import { formatDate } from '@/lib/utils/date-helpers';
 import { formatEmailAddress, getEmailPreview } from '@/lib/utils/email-helpers';
 import clsx from 'clsx';
 
-function hydrateDates(raw: unknown): Email {
-  const base = raw as unknown as Omit<Email, 'createdAt' | 'syncedAt'> & {
-    createdAt: unknown;
-    syncedAt: unknown;
-  };
-
-  const toDate = (value: unknown) => {
-    if (value instanceof Date) return value;
-    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
-    return new Date(String(value));
-  };
-
-  return { ...base, createdAt: toDate(base.createdAt), syncedAt: toDate(base.syncedAt) };
+interface EmailThreadProps {
+  selectedEmail: Email | null;
+  threadEmails: Email[] | null;
+  isLoading: boolean;
+  error: string | null;
 }
 
-export function EmailThread() {
-  const { activeDomain } = useDomains();
-  const { selectedEmail, setSelectedEmail } = useEmails();
-  const [threadEmails, setThreadEmails] = useState<Email[] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const selectedId = selectedEmail?.id ?? null;
-
-  useEffect(() => {
-    if (!activeDomain || !selectedId) {
-      setThreadEmails(null);
-      setError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
-
-    (async () => {
-      try {
-        const baseParams = new URLSearchParams({ domainId: activeDomain.id, includeDeleted: 'true' }).toString();
-        const [receivedRes, sentRes] = await Promise.all([
-          fetch(`/api/emails/received?${baseParams}`),
-          fetch(`/api/emails/sent?${baseParams}`),
-        ]);
-
-        if (!receivedRes.ok) throw new Error('Failed to load received emails');
-        if (!sentRes.ok) throw new Error('Failed to load sent emails');
-
-        const receivedJson = await receivedRes.json();
-        const sentJson = await sentRes.json();
-
-        const all = [...(receivedJson.emails ?? []), ...(sentJson.emails ?? [])].map(hydrateDates) as Email[];
-        const threads = buildThreads(all, { includeDeleted: true, includeSpam: true, sortOrder: 'asc' });
-        const thread = threads.find((t) => t.emails.some((e) => e.id === selectedId));
-
-        if (!thread) {
-          if (!cancelled) setThreadEmails([all.find((e) => e.id === selectedId)!].filter(Boolean));
-          return;
-        }
-
-        if (!cancelled) setThreadEmails(thread.emails);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load thread');
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeDomain, selectedId]);
+export function EmailThread({ selectedEmail, threadEmails, isLoading, error }: EmailThreadProps) {
+  const { setSelectedEmail } = useEmails();
 
   const content = useMemo(() => {
     if (!selectedEmail) return null;

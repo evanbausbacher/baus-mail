@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'isomorphic-dompurify';
 import type { Email } from '@/types/email';
 import { formatFullDate } from '@/lib/utils/date-helpers';
-import { formatEmailAddress, getEmailPreview, parseEmailAddress, splitReplyContent, stripHtml } from '@/lib/utils/email-helpers';
+import { formatEmailAddress, formatEmailThreadForLlm, getEmailPreview, parseEmailAddress, splitReplyContent, stripHtml } from '@/lib/utils/email-helpers';
 import { AttachmentsList } from '@/components/email/AttachmentsList';
 import { EmailThread } from '@/components/email/EmailThread';
 import { EmailActions } from '@/components/email/EmailActions';
 import { ActionSheet, ActionSheetButton } from '@/components/ui/ActionSheet';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { useEmailActions } from '@/hooks/useEmailActions';
+import { useEmailThread } from '@/hooks/useEmailThread';
 import { Archive, ChevronLeft, Ellipsis, Forward as ForwardIcon, Mail, MailOpen, Reply as ReplyIcon, Star } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -192,13 +193,16 @@ export function EmailDetail({ email }: { email: Email }) {
   const [isDragging, setIsDragging] = useState(false);
   const [openSide, setOpenSide] = useState<'left' | 'right' | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const startOffset = useRef(0);
   const draggingRef = useRef(false);
   const hasDraggedRef = useRef(false);
+  const copyResetTimeoutRef = useRef<number | null>(null);
   const { openComposeReply, openComposeReplyAll, openComposeForward, setSelectedEmail } = useEmails();
-  const { act, archive, toggleRead, toggleStar } = useEmailActions();
+  const { act, archive, toggleRead, toggleSpam, toggleStar, trash } = useEmailActions();
+  const { threadEmails, isLoading: isThreadLoading, error: threadError } = useEmailThread(email);
 
   // Guard so we only fire markRead once per email.id, regardless of `act`
   // identity churn (it depends on selectedEmail upstream).
@@ -212,6 +216,22 @@ export function EmailDetail({ email }: { email: Email }) {
       markedReadRef.current = null;
     });
   }, [email.id, email.isRead, act]);
+
+  useEffect(() => {
+    setCopyState('idle');
+    if (copyResetTimeoutRef.current !== null) {
+      window.clearTimeout(copyResetTimeoutRef.current);
+      copyResetTimeoutRef.current = null;
+    }
+  }, [email.id]);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current !== null) {
+        window.clearTimeout(copyResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const sanitizedHtml = useMemo(() => {
     const html = email.html ?? null;
@@ -231,6 +251,33 @@ export function EmailDetail({ email }: { email: Email }) {
   const canShowHtml = Boolean(sanitizedHtml);
   const hasQuotedHistory = Boolean(replyParts.quotedHeader || replyParts.quotedBody);
   const fromParsed = parseEmailAddress(email.from);
+  const llmThread = useMemo(() => (threadEmails?.length ? threadEmails : [email]), [threadEmails, email]);
+
+  const scheduleCopyStateReset = useCallback(() => {
+    if (copyResetTimeoutRef.current !== null) {
+      window.clearTimeout(copyResetTimeoutRef.current);
+    }
+    copyResetTimeoutRef.current = window.setTimeout(() => {
+      setCopyState('idle');
+      copyResetTimeoutRef.current = null;
+    }, 2000);
+  }, []);
+
+  const copyThreadForLlm = useCallback(async () => {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard unavailable');
+      }
+
+      const markdown = formatEmailThreadForLlm(llmThread, email.subject);
+      await navigator.clipboard.writeText(markdown);
+      setCopyState('success');
+    } catch {
+      setCopyState('error');
+    } finally {
+      scheduleCopyStateReset();
+    }
+  }, [email.subject, llmThread, scheduleCopyStateReset]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') return;
@@ -368,8 +415,13 @@ export function EmailDetail({ email }: { email: Email }) {
           </h2>
         </div>
         <div className="flex-1 lg:hidden" />
-        <div className="flex items-center shrink-0">
-          <EmailActions email={email} />
+        <div className="min-w-0 shrink-0">
+          <EmailActions
+            email={email}
+            onCopyForLlm={copyThreadForLlm}
+            copyState={copyState}
+            onOpenMore={() => setMoreOpen(true)}
+          />
         </div>
       </div>
 
@@ -469,7 +521,12 @@ export function EmailDetail({ email }: { email: Email }) {
             )}
           </div>
 
-          <EmailThread />
+          <EmailThread
+            selectedEmail={email}
+            threadEmails={threadEmails}
+            isLoading={isThreadLoading}
+            error={threadError}
+          />
         </div>
       </div>
 
@@ -500,10 +557,19 @@ export function EmailDetail({ email }: { email: Email }) {
         <ActionSheetButton onClick={() => { openComposeReply(email); setMoreOpen(false); }}>Reply</ActionSheetButton>
         <ActionSheetButton onClick={() => { openComposeReplyAll(email); setMoreOpen(false); }}>Reply All</ActionSheetButton>
         <ActionSheetButton onClick={() => { openComposeForward(email); setMoreOpen(false); }}>Forward</ActionSheetButton>
-        <ActionSheetButton onClick={() => { toggleStar(email); setMoreOpen(false); }}>{email.isStarred ? 'Unflag' : 'Flag'}</ActionSheetButton>
-        <ActionSheetButton onClick={() => { archive(email); setMoreOpen(false); }}>Archive</ActionSheetButton>
-        <ActionSheetButton onClick={() => { act([email.id], email.isRead ? 'markUnread' : 'markRead'); setMoreOpen(false); }}>
+        <ActionSheetButton onClick={() => { copyThreadForLlm(); setMoreOpen(false); }}>
+          {copyState === 'success' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy for LLM'}
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => { toggleRead(email); setMoreOpen(false); }}>
           {email.isRead ? 'Mark as Unread' : 'Mark as Read'}
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => { toggleStar(email); setMoreOpen(false); }}>{email.isStarred ? 'Unflag' : 'Flag'}</ActionSheetButton>
+        <ActionSheetButton onClick={() => { toggleSpam(email); setMoreOpen(false); }}>
+          {email.isSpam ? 'Not spam' : 'Mark as spam'}
+        </ActionSheetButton>
+        <ActionSheetButton onClick={() => { archive(email); setMoreOpen(false); }}>Archive</ActionSheetButton>
+        <ActionSheetButton tone="danger" onClick={() => { trash(email); setMoreOpen(false); }}>
+          Delete
         </ActionSheetButton>
       </ActionSheet>
     </div>

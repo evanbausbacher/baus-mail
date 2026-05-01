@@ -3,28 +3,90 @@
 import type { Email } from '@/types/email';
 import { Button } from '@/components/ui/Button';
 import { useEmailActions } from '@/hooks/useEmailActions';
-import { Archive, Star, Trash2, AlertOctagon, MailOpen, Mail } from 'lucide-react';
+import { Archive, Star, Trash2, AlertOctagon, MailOpen, Mail, Copy, Check, Ellipsis } from 'lucide-react';
 
-export function EmailActions({ email }: { email: Email }) {
+type CopyState = 'idle' | 'success' | 'error';
+
+interface EmailActionsProps {
+  email: Email;
+  onCopyForLlm?: () => void;
+  copyState?: CopyState;
+  onOpenMore?: () => void;
+}
+
+export function EmailActions({
+  email,
+  onCopyForLlm,
+  copyState = 'idle',
+  onOpenMore,
+}: EmailActionsProps) {
   const { isActing, toggleStar, toggleSpam, toggleRead, trash, archive } = useEmailActions();
+  const copyLabel = copyState === 'success' ? 'Copied thread for LLM' : copyState === 'error' ? 'Copy failed' : 'Copy thread for LLM';
+  const copyTone =
+    copyState === 'error'
+      ? 'text-red-600 hover:bg-red-50'
+      : copyState === 'success'
+        ? 'text-accent hover:bg-accent/10'
+        : 'text-ink hover:bg-line/40';
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button variant="ghost" onClick={() => toggleStar(email)} disabled={isActing} aria-label="Star" tooltip={email.isStarred ? 'Unstar' : 'Star'}>
-        <Star className="w-4 h-4" fill={email.isStarred ? 'currentColor' : 'none'} />
-      </Button>
-      <Button variant="ghost" onClick={() => toggleRead(email)} disabled={isActing} aria-label="Mark read/unread" tooltip={email.isRead ? 'Mark as unread' : 'Mark as read'}>
-        {email.isRead ? <Mail className="w-4 h-4" /> : <MailOpen className="w-4 h-4" />}
-      </Button>
-      <Button variant="ghost" onClick={() => toggleSpam(email)} disabled={isActing} aria-label="Spam" tooltip={email.isSpam ? 'Not spam' : 'Mark as spam'}>
-        <AlertOctagon className="w-4 h-4" />
-      </Button>
-      <Button variant="ghost" onClick={() => archive(email)} disabled={isActing} aria-label="Archive" tooltip={email.isArchived ? 'Unarchive' : 'Archive'}>
-        <Archive className="w-4 h-4" />
-      </Button>
-      <Button variant="ghost" onClick={() => trash(email)} disabled={isActing} aria-label="Delete" tooltip="Delete">
-        <Trash2 className="w-4 h-4" />
-      </Button>
-    </div>
+    <>
+      <div className="flex items-center gap-1 lg:hidden">
+        {onCopyForLlm ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCopyForLlm}
+            aria-label={copyLabel}
+            tooltip={copyLabel}
+            className={copyTone}
+          >
+            {copyState === 'success' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </Button>
+        ) : null}
+        {onOpenMore ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onOpenMore}
+            aria-label="More actions"
+            tooltip="More actions"
+            className="h-10 w-10 text-ink"
+          >
+            <Ellipsis className="w-4 h-4" />
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="hidden lg:flex flex-wrap items-center justify-end gap-2">
+        {onCopyForLlm ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCopyForLlm}
+            aria-label={copyLabel}
+            tooltip={copyLabel}
+            className={copyTone}
+          >
+            {copyState === 'success' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </Button>
+        ) : null}
+        <Button variant="ghost" onClick={() => toggleStar(email)} disabled={isActing} aria-label="Star" tooltip={email.isStarred ? 'Unstar' : 'Star'}>
+          <Star className="w-4 h-4" fill={email.isStarred ? 'currentColor' : 'none'} />
+        </Button>
+        <Button variant="ghost" onClick={() => toggleRead(email)} disabled={isActing} aria-label="Mark read/unread" tooltip={email.isRead ? 'Mark as unread' : 'Mark as read'}>
+          {email.isRead ? <Mail className="w-4 h-4" /> : <MailOpen className="w-4 h-4" />}
+        </Button>
+        <Button variant="ghost" onClick={() => toggleSpam(email)} disabled={isActing} aria-label="Spam" tooltip={email.isSpam ? 'Not spam' : 'Mark as spam'}>
+          <AlertOctagon className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" onClick={() => archive(email)} disabled={isActing} aria-label="Archive" tooltip={email.isArchived ? 'Unarchive' : 'Archive'}>
+          <Archive className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" onClick={() => trash(email)} disabled={isActing} aria-label="Delete" tooltip="Delete">
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </>
   );
 }

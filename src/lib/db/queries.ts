@@ -4,6 +4,7 @@ import { domains, emails, folders, syncState } from "./schema";
 import type { Domain, CreateDomainInput, UpdateDomainInput } from "@/types/domain";
 import type { Email, EmailType } from "@/types/email";
 import type { MailFolder } from "@/types/folder";
+import { buildThreads } from "@/lib/threading/algorithm";
 
 type DomainRow = typeof domains.$inferSelect;
 type EmailRow = typeof emails.$inferSelect;
@@ -270,6 +271,35 @@ export async function getEmailContentState(emailIds: string[]): Promise<Map<stri
 export async function getEmailById(id: string): Promise<Email | null> {
   const result = await db.select().from(emails).where(eq(emails.id, id)).limit(1);
   return result.length > 0 ? mapEmailFromDb(result[0]) : null;
+}
+
+export async function getEmailThreadById(id: string): Promise<Email[]> {
+  const email = await getEmailById(id);
+  if (!email) return [];
+
+  if (email.threadId) {
+    const directMatches = await db
+      .select()
+      .from(emails)
+      .where(and(eq(emails.domainId, email.domainId), eq(emails.threadId, email.threadId)))
+      .orderBy(emails.createdAt);
+
+    if (directMatches.length > 1) {
+      return directMatches.map(mapEmailFromDb);
+    }
+  }
+
+  const domainEmails = await db
+    .select()
+    .from(emails)
+    .where(eq(emails.domainId, email.domainId))
+    .orderBy(emails.createdAt);
+
+  const hydrated = domainEmails.map(mapEmailFromDb);
+  const threads = buildThreads(hydrated, { includeDeleted: true, includeSpam: true, sortOrder: "asc" });
+  const thread = threads.find((candidate) => candidate.emails.some((entry) => entry.id === id));
+
+  return thread ? [...thread.emails] : [email];
 }
 
 export async function searchEmails(params: {
