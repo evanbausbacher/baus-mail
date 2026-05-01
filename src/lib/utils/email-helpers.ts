@@ -48,6 +48,8 @@ function sanitizeCopiedBody(value: string): string {
     .replace(/\r\n?/g, '\n')
     .replace(/^>\s?/gm, '')
     .replace(/>/g, '')
+    .replace(/\nOn .+wrote:\s*$/is, '')
+    .replace(/\nFrom:\s.+$/is, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -76,12 +78,11 @@ export function formatEmailThreadForLlm(threadEmails: Email[], subject?: string)
   const title = formatThreadSubject(subject ?? sorted[0]?.subject);
   if (!sorted.length) return `# Email Thread: ${title}`;
 
-  const sections = sorted.map((email, index) => {
+  const sections = sorted.map((email) => {
     const body = normalizeBodyForLlm(email, { stripQuotedHistory: sorted.length > 1 });
     const lines = [
       `## ${email.type === 'sent' ? 'Sent' : 'Received'}`,
       '',
-      formatMarkdownList('Message', String(index + 1)),
       formatMarkdownList('From', email.from),
       formatMarkdownList('To', email.to?.length ? email.to.join(', ') : '(none)'),
       ...(email.cc?.length ? [formatMarkdownList('Cc', email.cc.join(', '))] : []),

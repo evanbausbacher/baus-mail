@@ -21,23 +21,27 @@ export function EmailActions({
   onOpenMore,
 }: EmailActionsProps) {
   const { isActing, toggleStar, toggleSpam, toggleRead, trash, archive } = useEmailActions();
-  const copyLabel = copyState === 'success' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy';
-  const copyVariant = copyState === 'error' ? 'danger' : copyState === 'success' ? 'primary' : 'secondary';
+  const copyLabel = copyState === 'success' ? 'Copied thread for LLM' : copyState === 'error' ? 'Copy failed' : 'Copy thread for LLM';
+  const copyTone =
+    copyState === 'error'
+      ? 'text-red-600 hover:bg-red-50'
+      : copyState === 'success'
+        ? 'text-accent hover:bg-accent/10'
+        : 'text-ink hover:bg-line/40';
 
   return (
     <>
-      <div className="flex items-center gap-2 lg:hidden">
+      <div className="flex items-center gap-1 lg:hidden">
         {onCopyForLlm ? (
           <Button
-            variant={copyVariant}
-            size="sm"
+            variant="ghost"
+            size="icon"
             onClick={onCopyForLlm}
-            aria-label="Copy thread for LLM"
-            tooltip="Copy thread for LLM"
-            className="min-w-[112px] justify-center"
+            aria-label={copyLabel}
+            tooltip={copyLabel}
+            className={copyTone}
           >
             {copyState === 'success' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            <span>{copyLabel}</span>
           </Button>
         ) : null}
         {onOpenMore ? (
@@ -47,9 +51,9 @@ export function EmailActions({
             onClick={onOpenMore}
             aria-label="More actions"
             tooltip="More actions"
-            className="rounded-full border border-line bg-surface text-ink"
+            className="h-10 w-10 text-ink"
           >
-            <Ellipsis className="w-5 h-5" />
+            <Ellipsis className="w-4 h-4" />
           </Button>
         ) : null}
       </div>
@@ -57,15 +61,14 @@ export function EmailActions({
       <div className="hidden lg:flex flex-wrap items-center justify-end gap-2">
         {onCopyForLlm ? (
           <Button
-            variant={copyVariant}
-            size="sm"
+            variant="ghost"
+            size="icon"
             onClick={onCopyForLlm}
-            aria-label="Copy thread for LLM"
-            tooltip="Copy thread for LLM"
-            className="shrink-0"
+            aria-label={copyLabel}
+            tooltip={copyLabel}
+            className={copyTone}
           >
             {copyState === 'success' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            <span>{copyLabel}</span>
           </Button>
         ) : null}
         <Button variant="ghost" onClick={() => toggleStar(email)} disabled={isActing} aria-label="Star" tooltip={email.isStarred ? 'Unstar' : 'Star'}>

@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useDomains } from '@/hooks/useDomains';
 import type { Email } from '@/types/email';
-import { buildThreads } from '@/lib/threading/algorithm';
 
 function hydrateDates(raw: unknown): Email {
   const base = raw as Omit<Email, 'createdAt' | 'syncedAt'> & {
@@ -21,13 +19,12 @@ function hydrateDates(raw: unknown): Email {
 }
 
 export function useEmailThread(email: Email | null) {
-  const { activeDomain } = useDomains();
   const [threadEmails, setThreadEmails] = useState<Email[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!activeDomain || !email?.id) {
+    if (!email?.id) {
       setThreadEmails(null);
       setError(null);
       setIsLoading(false);
@@ -40,28 +37,12 @@ export function useEmailThread(email: Email | null) {
 
     (async () => {
       try {
-        const baseParams = new URLSearchParams({ domainId: activeDomain.id, includeDeleted: 'true' }).toString();
-        const [receivedRes, sentRes] = await Promise.all([
-          fetch(`/api/emails/received?${baseParams}`),
-          fetch(`/api/emails/sent?${baseParams}`),
-        ]);
+        const response = await fetch(`/api/emails/thread/${email.id}`);
+        if (!response.ok) throw new Error('Failed to load thread');
 
-        if (!receivedRes.ok) throw new Error('Failed to load received emails');
-        if (!sentRes.ok) throw new Error('Failed to load sent emails');
-
-        const receivedJson = await receivedRes.json();
-        const sentJson = await sentRes.json();
-        const all = [...(receivedJson.emails ?? []), ...(sentJson.emails ?? [])].map(hydrateDates) as Email[];
-        const threads = buildThreads(all, { includeDeleted: true, includeSpam: true, sortOrder: 'asc' });
-        const thread = threads.find((candidate) => candidate.emails.some((entry) => entry.id === email.id));
-
-        if (!thread) {
-          const singleEmail = all.find((entry) => entry.id === email.id) ?? email;
-          if (!cancelled) setThreadEmails([singleEmail]);
-          return;
-        }
-
-        if (!cancelled) setThreadEmails(thread.emails);
+        const payload = await response.json();
+        const thread = (payload.emails ?? []).map(hydrateDates) as Email[];
+        if (!cancelled) setThreadEmails(thread.length > 0 ? thread : [email]);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load thread');
@@ -75,7 +56,7 @@ export function useEmailThread(email: Email | null) {
     return () => {
       cancelled = true;
     };
-  }, [activeDomain, email]);
+  }, [email]);
 
   return {
     threadEmails,
