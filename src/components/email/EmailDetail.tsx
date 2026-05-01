@@ -492,7 +492,9 @@ export function EmailDetail({ email }: { email: Email }) {
 
           {/* Body */}
           <div className="lg:rounded-2xl lg:border lg:border-line bg-surface overflow-hidden -mx-1 lg:mx-0">
-            {hasQuotedHistory ? (
+            {mode === 'html' && sanitizedHtml ? (
+              <ResponsiveEmailHtml html={sanitizedHtml} />
+            ) : hasQuotedHistory ? (
               <div className="px-1 py-2 lg:p-5 text-[15px] leading-6 text-ink">
                 <pre className="whitespace-pre-wrap font-sans">
                   {replyParts.body || 'No content'}
@@ -512,8 +514,6 @@ export function EmailDetail({ email }: { email: Email }) {
                   </div>
                 </details>
               </div>
-            ) : mode === 'html' && sanitizedHtml ? (
-              <ResponsiveEmailHtml html={sanitizedHtml} />
             ) : (
               <pre className="whitespace-pre-wrap font-sans px-1 py-2 lg:p-5 text-[15px] leading-6 text-ink">
                 {textFallback}

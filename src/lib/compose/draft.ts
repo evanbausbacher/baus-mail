@@ -1,5 +1,5 @@
 import type { Email } from '@/types/email';
-import { parseEmailAddress } from '@/lib/utils/email-helpers';
+import { parseEmailAddress, stripHtml } from '@/lib/utils/email-helpers';
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward';
 
@@ -39,7 +39,8 @@ function prefixSubject(prefix: string, subject: string): string {
 function quoteBody(email: Email): string {
   const date = email.createdAt instanceof Date ? email.createdAt : new Date(email.createdAt);
   const header = `On ${date.toLocaleString()}, ${email.from} wrote:`;
-  const body = email.text?.trim() ? email.text.trim() : '';
+  const bodyText = email.text?.trim() || stripHtml(email.html ?? '');
+  const body = bodyText.trim();
   const quoted = body ? body.split('\n').map((l) => `> ${l}`).join('\n') : '> (No content)';
   return `${header}\n${quoted}\n`;
 }
