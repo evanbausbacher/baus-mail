@@ -26,7 +26,9 @@ export const ReplyDefaults: ReplyProps = {
 
 export function Reply({ preheader, body, quotedHeader, quotedBody }: ReplyProps) {
   const paragraphs = (body ?? '').split(/\n{2,}/g);
-  const quotedLines = (quotedBody ?? '').split('\n');
+  const quotedLines = (quotedBody ?? '')
+    .replace(/^\s*>+\s?/gm, '')
+    .split('\n');
 
   return (
     <Html>

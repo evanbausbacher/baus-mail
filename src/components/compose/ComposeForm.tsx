@@ -2,17 +2,15 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { useDomains } from '@/hooks/useDomains';
-import { getTemplate, templates, type TemplateField, type TemplateId } from '@/lib/email-templates';
 import type { ComposeDraft } from '@/lib/compose/draft';
 import { sendEmailSchema } from '@/lib/utils/validation';
 import { parseEmailAddress } from '@/lib/utils/email-helpers';
 import { SendAsPicker } from './SendAsPicker';
-import { TemplateFields } from './TemplateFields';
-import { TemplatePicker } from './TemplatePicker';
 import { TemplatePreview } from './TemplatePreview';
 
 type ComposeMode = 'mobile' | 'desktop';
@@ -47,6 +45,43 @@ function parseEmailCsv(value: string): string[] {
   );
 }
 
+function stripQuotePrefix(value: string): string {
+  return value.replace(/^\s*>+\s?/gm, '');
+}
+
+function normalizeQuotedLines(value: string): string {
+  return stripQuotePrefix(value).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function splitReplyDraft(initial: ComposeDraft): {
+  body: string;
+  quotedBody: string;
+  quotedHeader: string;
+} {
+  const text = initial.text ?? '';
+  const parts = text.split(/^(On .+ wrote:)$/m);
+  if (parts.length >= 3) {
+    return {
+      body: parts[0].trim(),
+      quotedHeader: parts[1].trim(),
+      quotedBody: normalizeQuotedLines(parts.slice(2).join('')),
+    };
+  }
+
+  return {
+    body: text.trim(),
+    quotedHeader: '',
+    quotedBody: '',
+  };
+}
+
+function joinReplyText(body: string, quotedHeader: string, quotedBody: string): string {
+  const sections = [body.trim()];
+  if (quotedHeader) sections.push(quotedHeader.trim());
+  if (quotedBody) sections.push(quotedBody.trim());
+  return sections.filter(Boolean).join('\n\n');
+}
+
 function DesktopFieldRow({
   label,
   children,
@@ -67,45 +102,41 @@ function DesktopFieldRow({
   );
 }
 
-function DesktopField({
-  field,
-  isExpandedBody = false,
-  onChange,
-  value,
+function QuotedThread({
+  isCollapsed,
+  onToggle,
+  quotedBody,
+  quotedHeader,
 }: {
-  field: TemplateField;
-  isExpandedBody?: boolean;
-  onChange: (key: string, value: string) => void;
-  value: string;
+  isCollapsed: boolean;
+  onToggle: () => void;
+  quotedBody: string;
+  quotedHeader: string;
 }) {
-  if (field.type === 'textarea') {
-    return (
-      <div className={clsx(isExpandedBody ? 'flex min-h-0 flex-1 flex-col' : 'space-y-2')}>
-        <label className="text-sm font-medium text-ink-muted">{field.label}</label>
-        <textarea
-          value={value}
-          placeholder={field.placeholder}
-          onChange={(e) => onChange(field.key, e.target.value)}
-          className={clsx(
-            'w-full rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink',
-            'placeholder:text-ink-subtle focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30',
-            isExpandedBody ? 'min-h-[240px] flex-1 resize-none' : 'min-h-[132px] resize-y'
-          )}
-        />
-      </div>
-    );
-  }
+  if (!quotedHeader && !quotedBody) return null;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-ink-muted">{field.label}</label>
-      <input
-        type={field.type === 'url' ? 'url' : 'text'}
-        value={value}
-        placeholder={field.placeholder}
-        onChange={(e) => onChange(field.key, e.target.value)}
-        className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-subtle focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
-      />
+    <div className="rounded-2xl border border-line bg-canvas/50">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-ink">Quoted thread</div>
+          {quotedHeader ? <div className="truncate text-xs text-ink-subtle">{quotedHeader}</div> : null}
+        </div>
+        {isCollapsed ? <ChevronDown className="h-4 w-4 text-ink-muted" /> : <ChevronUp className="h-4 w-4 text-ink-muted" />}
+      </button>
+
+      {!isCollapsed ? (
+        <div className="border-t border-line px-4 py-4">
+          {quotedHeader ? <div className="mb-3 text-xs text-ink-muted">{quotedHeader}</div> : null}
+          <div className="rounded-xl border-l-4 border-line bg-surface/70 px-4 py-3 text-sm leading-6 text-ink-muted whitespace-pre-wrap">
+            {quotedBody || '(No content)'}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -121,84 +152,68 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
       : [];
   const defaultFrom = fromAddresses[0] ?? '';
 
-  const initialFromTemplate: TemplateId =
-    initial.mode === 'reply' || initial.mode === 'replyAll' ? 'reply' : 'plain';
-
   const [tab, setTab] = useState<'compose' | 'preview'>('compose');
-  const [templateId, setTemplateId] = useState<TemplateId>(initialFromTemplate);
   const [from, setFrom] = useState<string>(initial.from ?? defaultFrom);
   const [to, setTo] = useState((initial.to ?? []).join(', '));
   const [cc, setCc] = useState((initial.cc ?? []).join(', '));
   const [bcc, setBcc] = useState((initial.bcc ?? []).join(', '));
   const [subject, setSubject] = useState(initial.subject ?? '');
+  const [body, setBody] = useState('');
+  const [quotedHeader, setQuotedHeader] = useState('');
+  const [quotedBody, setQuotedBody] = useState('');
   const [showCcBcc, setShowCcBcc] = useState((initial.cc?.length ?? 0) > 0 || (initial.bcc?.length ?? 0) > 0);
-  const [templateProps, setTemplateProps] = useState<Record<string, string>>({});
+  const [quoteCollapsed, setQuoteCollapsed] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const lastResetRef = useRef<{ defaultFrom: string; initial: ComposeDraft } | null>(null);
+
   useEffect(() => {
     if (lastResetRef.current?.initial === initial && lastResetRef.current.defaultFrom === defaultFrom) return;
     lastResetRef.current = { initial, defaultFrom };
 
-    const startTemplate: TemplateId = initial.mode === 'reply' || initial.mode === 'replyAll' ? 'reply' : 'plain';
-    setTemplateId(startTemplate);
+    const replyParts = splitReplyDraft(initial);
     setTab('compose');
     setFrom(initial.from ?? defaultFrom);
     setTo((initial.to ?? []).join(', '));
     setCc((initial.cc ?? []).join(', '));
     setBcc((initial.bcc ?? []).join(', '));
     setSubject(initial.subject ?? '');
+    setBody(replyParts.body);
+    setQuotedHeader(replyParts.quotedHeader);
+    setQuotedBody(replyParts.quotedBody);
     setShowCcBcc((initial.cc?.length ?? 0) > 0 || (initial.bcc?.length ?? 0) > 0);
-
-    const def = getTemplate(startTemplate);
-    const seeded: Record<string, string> = { ...(def.defaultProps as Record<string, string>) };
-    if (startTemplate === 'reply') {
-      const text = initial.text ?? '';
-      const parts = text.split(/^(On .+ wrote:)$/m);
-      if (parts.length >= 3) {
-        seeded.body = parts[0].trim();
-        seeded.quotedHeader = parts[1].trim();
-        seeded.quotedBody = parts.slice(2).join('').replace(/^>\s?/gm, '').trim();
-      } else {
-        seeded.body = text;
-        seeded.quotedHeader = '';
-        seeded.quotedBody = '';
-      }
-    } else if (startTemplate === 'plain') {
-      seeded.body = initial.text ?? (def.defaultProps as Record<string, string>).body ?? '';
-      seeded.preheader = '';
-    }
-    setTemplateProps(seeded);
+    setQuoteCollapsed(false);
     setError(null);
   }, [defaultFrom, initial]);
 
   useEffect(() => {
-    const def = getTemplate(templateId);
-    setTemplateProps((prev) => {
-      const next: Record<string, string> = { ...(def.defaultProps as Record<string, string>) };
-      for (const f of def.fields) {
-        if (prev[f.key] !== undefined && prev[f.key] !== '') {
-          next[f.key] = prev[f.key];
-        }
-      }
-      return next;
+    if (tab !== 'compose') return;
+    const node = bodyRef.current;
+    if (!node) return;
+    const id = window.requestAnimationFrame(() => {
+      node.focus();
+      const end = node.value.length;
+      node.setSelectionRange(end, end);
     });
-  }, [templateId]);
+    return () => window.cancelAnimationFrame(id);
+  }, [initial, tab, mode]);
 
-  const def = useMemo(() => getTemplate(templateId), [templateId]);
+  const previewMode = quotedHeader || quotedBody ? 'reply' : 'plain';
+  const previewPayload = useMemo(
+    () => ({
+      mode: previewMode,
+      body,
+      quotedHeader,
+      quotedBody,
+    }),
+    [body, previewMode, quotedBody, quotedHeader]
+  );
 
-  const desktopFieldGroups = useMemo(() => {
-    const bodyField = def.fields.find((field) => field.key === 'body' && field.type === 'textarea') ?? null;
-    const nonBodyFields = def.fields.filter((field) => field !== bodyField);
-    const inputFields = nonBodyFields.filter((field) => field.type !== 'textarea');
-    const extraTextareas = nonBodyFields.filter((field) => field.type === 'textarea');
-    return { bodyField, extraTextareas, inputFields };
-  }, [def.fields]);
-
-  const handleFieldChange = (key: string, value: string) => {
-    setTemplateProps((prev) => ({ ...prev, [key]: value }));
-  };
+  const textPayload = useMemo(
+    () => (previewMode === 'reply' ? joinReplyText(body, quotedHeader, quotedBody) : body.trim()),
+    [body, previewMode, quotedBody, quotedHeader]
+  );
 
   const handleSend = async () => {
     if (!activeDomain) {
@@ -216,7 +231,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
       const previewRes = await fetch('/api/email-templates/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId, props: templateProps }),
+        body: JSON.stringify(previewPayload),
       });
       if (!previewRes.ok) {
         const data = await previewRes.json().catch(() => null);
@@ -232,7 +247,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
         bcc: showCcBcc && bcc.trim() ? parseEmailCsv(bcc) : undefined,
         subject: subject.trim(),
         html,
-        text: templateProps.body || undefined,
+        text: textPayload || undefined,
         inReplyTo: initial.inReplyTo ?? undefined,
         references: initial.references ?? undefined,
       };
@@ -293,12 +308,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
 
         {tab === 'compose' ? (
           <div className="space-y-4">
-            <SendAsPicker
-              aliases={fromAddresses}
-              value={from}
-              onChange={setFrom}
-              domainFallback={activeDomain?.name}
-            />
+            <SendAsPicker aliases={fromAddresses} value={from} onChange={setFrom} domainFallback={activeDomain?.name} />
 
             <Input
               label="To"
@@ -332,14 +342,26 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
               placeholder="Subject"
             />
 
-            <TemplatePicker value={templateId} onChange={setTemplateId} />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-ink-muted">Message</label>
+              <textarea
+                ref={bodyRef}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Write your message…"
+                className="min-h-[220px] w-full rounded-2xl border border-line bg-surface px-4 py-3 text-base text-ink placeholder:text-ink-subtle focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
+              />
+            </div>
 
-            <p className="-mt-2 text-xs text-ink-subtle">{def.description}</p>
-
-            <TemplateFields fields={def.fields} values={templateProps} onChange={handleFieldChange} />
+            <QuotedThread
+              quotedHeader={quotedHeader}
+              quotedBody={quotedBody}
+              isCollapsed={quoteCollapsed}
+              onToggle={() => setQuoteCollapsed((value) => !value)}
+            />
           </div>
         ) : (
-          <TemplatePreview templateId={templateId} props={templateProps} />
+          <TemplatePreview {...previewPayload} />
         )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -466,75 +488,30 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
             className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
           />
         </DesktopFieldRow>
-
-        <div className="flex flex-wrap items-center gap-3 px-0 pt-3">
-          <div className="text-xs font-medium uppercase tracking-[0.16em] text-ink-subtle">
-            Template
-          </div>
-          <div className="flex flex-wrap gap-1 rounded-xl bg-line/40 p-1">
-            {templates.map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                onClick={() => setTemplateId(template.id)}
-                className={clsx(
-                  'rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
-                  templateId === template.id
-                    ? 'bg-surface text-ink shadow-sm'
-                    : 'text-ink-muted hover:text-ink'
-                )}
-              >
-                {template.label}
-              </button>
-            ))}
-          </div>
-          <div className="min-w-0 flex-1 text-xs text-ink-subtle">{def.description}</div>
-        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {tab === 'preview' ? (
-          <TemplatePreview templateId={templateId} props={templateProps} />
+          <TemplatePreview {...previewPayload} />
         ) : (
           <div className="flex h-full min-h-0 flex-col gap-4">
-            {desktopFieldGroups.inputFields.length > 0 ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                {desktopFieldGroups.inputFields.map((field) => (
-                  <DesktopField
-                    key={field.key}
-                    field={field}
-                    value={templateProps[field.key] ?? ''}
-                    onChange={handleFieldChange}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {desktopFieldGroups.bodyField ? (
-              <DesktopField
-                field={desktopFieldGroups.bodyField}
-                isExpandedBody
-                value={templateProps[desktopFieldGroups.bodyField.key] ?? ''}
-                onChange={handleFieldChange}
+            <div className="flex min-h-0 flex-1 flex-col">
+              <label className="mb-2 text-sm font-medium text-ink-muted">Message</label>
+              <textarea
+                ref={bodyRef}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Write your message…"
+                className="min-h-[260px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-sm leading-6 text-ink placeholder:text-ink-subtle focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
               />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-line bg-canvas/60 px-4 py-5 text-sm text-ink-subtle">
-                This template does not expose a primary message body field.
-              </div>
-            )}
+            </div>
 
-            {desktopFieldGroups.extraTextareas.length > 0 ? (
-              <div className="space-y-4">
-                {desktopFieldGroups.extraTextareas.map((field) => (
-                  <DesktopField
-                    key={field.key}
-                    field={field}
-                    value={templateProps[field.key] ?? ''}
-                    onChange={handleFieldChange}
-                  />
-                ))}
-              </div>
-            ) : null}
+            <QuotedThread
+              quotedHeader={quotedHeader}
+              quotedBody={quotedBody}
+              isCollapsed={quoteCollapsed}
+              onToggle={() => setQuoteCollapsed((value) => !value)}
+            />
           </div>
         )}
       </div>
@@ -543,7 +520,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
         {error ? <p className="pb-3 text-sm text-red-600">{error}</p> : null}
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-ink-subtle">
-            {tab === 'preview' ? 'Previewing rendered output' : 'Compose in place and preview before sending'}
+            {tab === 'preview' ? 'Previewing rendered output' : quotedHeader || quotedBody ? 'Reply above the quoted thread' : 'Compose your message'}
           </div>
           <div className="flex items-center gap-2">
             <Button

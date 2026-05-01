@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { TemplateId } from '@/lib/email-templates';
 import { Loader2 } from 'lucide-react';
 
 interface TemplatePreviewProps {
-  templateId: TemplateId;
-  props: Record<string, string>;
+  body: string;
+  mode: 'plain' | 'reply';
+  quotedBody?: string;
+  quotedHeader?: string;
 }
 
-export function TemplatePreview({ templateId, props }: TemplatePreviewProps) {
+export function TemplatePreview({ mode, body, quotedHeader, quotedBody }: TemplatePreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export function TemplatePreview({ templateId, props }: TemplatePreviewProps) {
     fetch('/api/email-templates/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ templateId, props }),
+      body: JSON.stringify({ mode, body, quotedHeader, quotedBody }),
       signal: ctrl.signal,
     })
       .then(async (res) => {
@@ -54,7 +55,7 @@ export function TemplatePreview({ templateId, props }: TemplatePreviewProps) {
       cancelled = true;
       ctrl.abort();
     };
-  }, [templateId, props]);
+  }, [body, mode, quotedBody, quotedHeader]);
 
   return (
     <div className="relative h-full min-h-[400px] rounded-xl overflow-hidden border border-line bg-canvas/60">
