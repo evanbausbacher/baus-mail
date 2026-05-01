@@ -45,10 +45,10 @@ export function stripHtml(html: string): string {
 
 function normalizeBodyForLlm(email: Email): string {
   const text = email.text?.trim();
-  if (text) return text.replace(/\r\n?/g, '\n');
+  if (text) return text.replace(/\r\n?/g, '\n').replace(/^>\s?/gm, '');
 
   const stripped = stripHtml(email.html ?? '');
-  return stripped ? stripped.replace(/\r\n?/g, '\n') : 'No content';
+  return stripped ? stripped.replace(/\r\n?/g, '\n').replace(/^>\s?/gm, '') : 'No content';
 }
 
 function formatMarkdownList(label: string, value: string): string {
@@ -67,19 +67,15 @@ export function formatEmailThreadForLlm(threadEmails: Email[], subject?: string)
 
   const sections = sorted.map((email, index) => {
     const lines = [
-      `## Message ${index + 1}`,
+      `## ${email.type === 'sent' ? 'Sent' : 'Received'}`,
       '',
+      formatMarkdownList('Message', String(index + 1)),
       formatMarkdownList('From', email.from),
       formatMarkdownList('To', email.to?.length ? email.to.join(', ') : '(none)'),
       ...(email.cc?.length ? [formatMarkdownList('Cc', email.cc.join(', '))] : []),
       formatMarkdownList('Date', email.createdAt.toISOString()),
-      formatMarkdownList('Type', email.type),
       '',
-      '### Body',
-      '',
-      '````text',
       normalizeBodyForLlm(email),
-      '````',
     ];
 
     return lines.join('\n');
