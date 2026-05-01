@@ -9,6 +9,7 @@ import { MobileMailToolbar } from '@/components/layout/MobileMailToolbar';
 import { EmailList } from '@/components/email/EmailList';
 import { EmailDetail } from '@/components/email/EmailDetail';
 import { ComposeSheet } from '@/components/compose/ComposeSheet';
+import { DesktopComposeWindow } from '@/components/compose/DesktopComposeWindow';
 import { SettingsSheet } from '@/components/settings/SettingsSheet';
 import { useDomains } from '@/hooks/useDomains';
 import { useEmails } from '@/components/providers/EmailProvider';
@@ -36,6 +37,7 @@ export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileUnreadOnly, setMobileUnreadOnly] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const lastActiveDomainId = useRef<string | null>(null);
 
   const handleSync = useCallback(async () => {
@@ -69,6 +71,15 @@ export function AppShell() {
       await refreshEmails(activeDomain.id);
     }
   }, [activeDomain, refreshEmails]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    const syncViewport = () => setIsDesktopViewport(media.matches);
+
+    syncViewport();
+    media.addEventListener('change', syncViewport);
+    return () => media.removeEventListener('change', syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!activeDomain) {
@@ -134,7 +145,7 @@ export function AppShell() {
       </div>
 
       {/* ============ Desktop (≥ lg) ============ */}
-      <div className="hidden lg:flex h-screen bg-background p-3 gap-3">
+      <div className="hidden h-screen gap-3 bg-background p-3 lg:flex">
         <Sidebar
           activeView={currentView}
           onViewChange={setCurrentView}
@@ -142,29 +153,41 @@ export function AppShell() {
           onOpenSettings={() => setSettingsOpen(true)}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 rounded-2xl border border-line bg-surface overflow-hidden shadow-ios">
-          <TopBar onSync={handleSync} onCompose={openComposeNew} />
+        <div className="relative flex-1 min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-ios">
+          <div className="flex h-full flex-col">
+            <TopBar onSync={handleSync} onCompose={openComposeNew} />
 
-          <div className="flex flex-1 min-h-0">
-            <div className="w-[420px] border-r border-line bg-surface overflow-auto">
-              <EmailList />
-            </div>
+            <div className="flex flex-1 min-h-0">
+              <div className="w-[420px] overflow-auto border-r border-line bg-surface">
+                <EmailList />
+              </div>
 
-            <div className="flex-1 min-w-0 bg-surface overflow-auto">
-              {!selectedEmail ? (
-                <div className="h-full flex items-center justify-center text-sm text-ink-subtle">
-                  Select an email to view details
-                </div>
-              ) : (
-                <EmailDetail email={selectedEmail} />
-              )}
+              <div className="min-w-0 flex-1 overflow-auto bg-surface">
+                {!selectedEmail ? (
+                  <div className="flex h-full items-center justify-center text-sm text-ink-subtle">
+                    Select an email to view details
+                  </div>
+                ) : (
+                  <EmailDetail email={selectedEmail} />
+                )}
+              </div>
             </div>
           </div>
+
+          <DesktopComposeWindow
+            isOpen={isDesktopViewport && compose.isOpen}
+            onClose={closeCompose}
+            initial={compose.draft}
+          />
         </div>
       </div>
 
       {/* ============ Sheets/Modals (shared) ============ */}
-      <ComposeSheet isOpen={compose.isOpen} onClose={closeCompose} initial={compose.draft} />
+      <ComposeSheet
+        isOpen={!isDesktopViewport && compose.isOpen}
+        onClose={closeCompose}
+        initial={compose.draft}
+      />
       <SettingsSheet
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
