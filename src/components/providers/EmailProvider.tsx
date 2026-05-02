@@ -27,7 +27,7 @@ interface EmailContextType {
   openComposeForward: (email: Email) => void;
   closeCompose: () => void;
   loadEmails: (domainId: string, view: EmailView) => Promise<void>;
-  toggleEmailSelection: (emailId: string) => void;
+  toggleEmailSelection: (emailId: string | string[]) => void;
   setSelectionMode: (enabled: boolean) => void;
   selectAllEmails: (emailIds?: string[]) => void;
   clearSelection: () => void;
@@ -224,14 +224,18 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentDomainId, currentView, loadEmails, runSearch, searchQuery]);
 
-  const toggleEmailSelection = useCallback((emailId: string) => {
+  const toggleEmailSelection = useCallback((emailId: string | string[]) => {
+    const emailIds = Array.isArray(emailId) ? emailId : [emailId];
     setSelectedEmails(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(emailId)) {
-        newSet.delete(emailId);
+      const allSelected = emailIds.length > 0 && emailIds.every((id) => newSet.has(id));
+
+      if (allSelected) {
+        emailIds.forEach((id) => newSet.delete(id));
       } else {
-        newSet.add(emailId);
+        emailIds.forEach((id) => newSet.add(id));
       }
+
       return newSet;
     });
   }, []);
