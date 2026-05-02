@@ -33,16 +33,11 @@ function fallbackThreadKey(email: Email): string {
   return `s:${normalizeSubject(email.subject || '').toLowerCase()}|p:${participantKey(email)}`;
 }
 
-function directThreadKey(email: Email): string | null {
-  if (email.threadId) return `t:${normalizeMessageId(email.threadId)}`;
-  if (email.messageId) return `m:${normalizeMessageId(email.messageId)}`;
-  const refs = parseReferences(email.references);
-  if (refs.length > 0) return `r:${refs[0]}`;
-  if (email.inReplyTo) return `i:${normalizeMessageId(email.inReplyTo)}`;
-  return null;
-}
-
-function chooseThreadKey(email: Email, messageIdToThreadKey: Map<string, string>): string {
+function chooseThreadKey(
+  email: Email,
+  messageIdToThreadKey: Map<string, string>,
+  fallbackKeyToThreadKey: Map<string, string>
+): string {
   const refs = parseReferences(email.references);
   for (const ref of refs) {
     const existing = messageIdToThreadKey.get(ref);
@@ -54,7 +49,18 @@ function chooseThreadKey(email: Email, messageIdToThreadKey: Map<string, string>
     if (parent) return parent;
   }
 
-  return directThreadKey(email) ?? fallbackThreadKey(email);
+  if (email.threadId) {
+    const existing = messageIdToThreadKey.get(normalizeMessageId(email.threadId));
+    if (existing) return existing;
+  }
+
+  if (email.messageId) {
+    const existing = messageIdToThreadKey.get(normalizeMessageId(email.messageId));
+    if (existing) return existing;
+  }
+
+  const fallbackKey = fallbackThreadKey(email);
+  return fallbackKeyToThreadKey.get(fallbackKey) ?? fallbackKey;
 }
 
 function dateFromUnknown(value: unknown): Date {
@@ -67,17 +73,21 @@ export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): 
   const includeDeleted = options?.includeDeleted ?? false;
   const includeSpam = options?.includeSpam ?? false;
 
-  const emails = allEmails.filter((e) => {
-    if (!includeDeleted && e.isDeleted) return false;
-    if (!includeSpam && e.isSpam) return false;
-    return true;
-  });
+  const emails = allEmails
+    .filter((e) => {
+      if (!includeDeleted && e.isDeleted) return false;
+      if (!includeSpam && e.isSpam) return false;
+      return true;
+    })
+    .sort((a, b) => dateFromUnknown(a.createdAt).getTime() - dateFromUnknown(b.createdAt).getTime());
 
   const messageIdToThreadKey = new Map<string, string>();
+  const fallbackKeyToThreadKey = new Map<string, string>();
   const threadKeyToEmails = new Map<string, Email[]>();
 
   for (const email of emails) {
-    const key = chooseThreadKey(email, messageIdToThreadKey);
+    const key = chooseThreadKey(email, messageIdToThreadKey, fallbackKeyToThreadKey);
+    fallbackKeyToThreadKey.set(fallbackThreadKey(email), key);
 
     if (email.messageId) {
       messageIdToThreadKey.set(normalizeMessageId(email.messageId), key);
@@ -97,11 +107,6 @@ export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): 
     const sorted = [...threadEmails].sort(
       (a, b) => dateFromUnknown(a.createdAt).getTime() - dateFromUnknown(b.createdAt).getTime()
     );
-
-    const messageIdToEmail = new Map<string, Email>();
-    for (const e of sorted) {
-      if (e.messageId) messageIdToEmail.set(normalizeMessageId(e.messageId), e);
-    }
 
     const computeDepth = (email: Email): number => {
       const refs = parseReferences(email.references);

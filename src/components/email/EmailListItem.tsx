@@ -14,6 +14,10 @@ import { useEmailActions } from '@/hooks/useEmailActions';
 
 interface EmailListItemProps {
   email: Email;
+  threadEmailIds?: string[];
+  threadCount?: number;
+  threadUnreadCount?: number;
+  threadHasStarred?: boolean;
 }
 
 const SWIPE_THRESHOLD = 42;
@@ -22,7 +26,13 @@ const SWIPE_FULL_TRIGGER = 220;
 const SWIPE_REVEAL = 240;
 const READ_REVEAL = 88;
 
-export function EmailListItem({ email }: EmailListItemProps) {
+export function EmailListItem({
+  email,
+  threadEmailIds,
+  threadCount = 1,
+  threadUnreadCount,
+  threadHasStarred,
+}: EmailListItemProps) {
   const {
     selectedEmails,
     isSelectionMode,
@@ -33,10 +43,17 @@ export function EmailListItem({ email }: EmailListItemProps) {
     openComposeReplyAll,
     openComposeForward,
   } = useEmails();
-  const { act, toggleStar, toggleRead, archive, isActing } = useEmailActions();
+  const { act, isActing } = useEmailActions();
 
-  const isSelected = selectedEmails.has(email.id);
-  const isActive = selectedEmail?.id === email.id;
+  const actionEmailIds = threadEmailIds?.length ? threadEmailIds : [email.id];
+  const unreadCount = threadUnreadCount ?? (email.isRead ? 0 : 1);
+  const hasStarred = threadHasStarred ?? email.isStarred;
+  const isUnread = unreadCount > 0;
+  const isSelected = actionEmailIds.length > 0 && actionEmailIds.every((id) => selectedEmails.has(id));
+  const isActive = selectedEmail ? actionEmailIds.includes(selectedEmail.id) : false;
+  const markAction = isUnread ? 'markRead' : 'markUnread';
+  const markLabel = isUnread ? 'Read' : 'Unread';
+  const starAction = hasStarred ? 'unstar' : 'star';
 
   const counterparty = email.type === 'sent'
     ? (email.to?.[0] ?? '')
@@ -141,13 +158,13 @@ export function EmailListItem({ email }: EmailListItemProps) {
         <button
           type="button"
           onClick={() => {
-            toggleRead(email);
+            act(actionEmailIds, markAction);
             closeSwipe();
           }}
           className="h-full w-[88px] pl-3 pr-4 flex flex-col items-center justify-center gap-1 text-[11px]"
         >
-          {email.isRead ? <Mail className="w-5 h-5" /> : <MailOpen className="w-5 h-5" />}
-          {email.isRead ? 'Unread' : 'Read'}
+          {isUnread ? <MailOpen className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
+          {markLabel}
         </button>
       </div>
       <div
@@ -169,7 +186,7 @@ export function EmailListItem({ email }: EmailListItemProps) {
         <button
           type="button"
           onClick={() => {
-            toggleStar(email);
+            act(actionEmailIds, starAction);
             closeSwipe();
           }}
           className="w-20 px-3 bg-yellow-500 text-white flex flex-col items-center justify-center gap-1 text-[11px]"
@@ -209,7 +226,7 @@ export function EmailListItem({ email }: EmailListItemProps) {
             closeSwipe();
             return;
           }
-          if (isSelectionMode) toggleEmailSelection(email.id);
+          if (isSelectionMode) toggleEmailSelection(actionEmailIds);
           else setSelectedEmail(email);
         }}
       >
@@ -217,7 +234,7 @@ export function EmailListItem({ email }: EmailListItemProps) {
           <div className={clsx('pt-1', isSelectionMode ? 'block' : 'hidden lg:block')} onClick={(e) => e.stopPropagation()}>
             <Checkbox
               checked={isSelected}
-              onChange={() => toggleEmailSelection(email.id)}
+              onChange={() => toggleEmailSelection(actionEmailIds)}
               aria-label="Select email"
             />
           </div>
@@ -237,13 +254,18 @@ export function EmailListItem({ email }: EmailListItemProps) {
             <div className="flex items-baseline justify-between gap-2">
               <div className={clsx(
                 'truncate text-[15px]',
-                email.isRead ? 'text-ink-muted font-normal' : 'text-ink font-semibold'
+                isUnread ? 'text-ink font-semibold' : 'text-ink-muted font-normal'
               )}>
                 {primaryLine}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                {!email.isRead && (
+                {isUnread && (
                   <span className="inline-block h-2 w-2 rounded-full bg-accent" aria-hidden />
+                )}
+                {threadCount > 1 && (
+                  <span className="rounded-full bg-line/70 px-1.5 py-0.5 text-[11px] font-medium text-ink-muted">
+                    {threadCount}
+                  </span>
                 )}
                 <span className="text-xs text-ink-subtle whitespace-nowrap">
                   {formatDate(email.createdAt)}
@@ -253,14 +275,14 @@ export function EmailListItem({ email }: EmailListItemProps) {
 
             <div className={clsx(
               'truncate text-sm mt-0.5',
-              email.isRead ? 'text-ink-muted' : 'text-ink font-medium'
+              isUnread ? 'text-ink font-medium' : 'text-ink-muted'
             )}>
               {email.subject?.trim() ? email.subject : '(No subject)'}
             </div>
 
             <div className="flex items-center gap-2 mt-0.5">
               <div className="text-xs text-ink-subtle truncate flex-1 min-w-0">{preview}</div>
-              {email.isStarred && (
+              {hasStarred && (
                 <Star className="w-3.5 h-3.5 text-yellow-500 shrink-0" fill="currentColor" />
               )}
             </div>
@@ -272,12 +294,12 @@ export function EmailListItem({ email }: EmailListItemProps) {
             className="hidden lg:inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-line/40"
             onClick={(e) => {
               e.stopPropagation();
-              toggleStar(email);
+              act(actionEmailIds, starAction);
             }}
             disabled={isActing}
-            aria-label={email.isStarred ? 'Unstar' : 'Star'}
+            aria-label={hasStarred ? 'Unstar thread' : 'Star thread'}
           >
-            <Star className="w-4 h-4 text-ink-muted" fill={email.isStarred ? 'currentColor' : 'none'} />
+            <Star className="w-4 h-4 text-ink-muted" fill={hasStarred ? 'currentColor' : 'none'} />
           </button>
         </div>
       </div>
@@ -286,13 +308,12 @@ export function EmailListItem({ email }: EmailListItemProps) {
         <ActionSheetButton onClick={() => { openComposeReply(email); setMoreOpen(false); }}>Reply</ActionSheetButton>
         <ActionSheetButton onClick={() => { openComposeReplyAll(email); setMoreOpen(false); }}>Reply All</ActionSheetButton>
         <ActionSheetButton onClick={() => { openComposeForward(email); setMoreOpen(false); }}>Forward</ActionSheetButton>
-        <ActionSheetButton onClick={() => { archive(email); setMoreOpen(false); }}>Archive</ActionSheetButton>
-        <ActionSheetButton onClick={() => { toggleStar(email); setMoreOpen(false); }}>{email.isStarred ? 'Unflag' : 'Flag'}</ActionSheetButton>
-        <ActionSheetButton onClick={() => { act([email.id], email.isRead ? 'markUnread' : 'markRead'); setMoreOpen(false); }}>
-          {email.isRead ? 'Mark as Unread' : 'Mark as Read'}
+        <ActionSheetButton onClick={() => { act(actionEmailIds, email.isArchived ? 'unarchive' : 'archive'); setMoreOpen(false); }}>Archive</ActionSheetButton>
+        <ActionSheetButton onClick={() => { act(actionEmailIds, starAction); setMoreOpen(false); }}>{hasStarred ? 'Unflag' : 'Flag'}</ActionSheetButton>
+        <ActionSheetButton onClick={() => { act(actionEmailIds, markAction); setMoreOpen(false); }}>
+          {isUnread ? 'Mark as Read' : 'Mark as Unread'}
         </ActionSheetButton>
       </ActionSheet>
     </div>
   );
 }
-
