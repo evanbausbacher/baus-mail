@@ -10,6 +10,7 @@ import { MovePicker } from '@/components/email/MovePicker';
 import { EmailListSkeleton } from '@/components/email/EmailListSkeleton';
 import { Loader2, Inbox } from 'lucide-react';
 import { useEmailActions } from '@/hooks/useEmailActions';
+import { buildThreads } from '@/lib/threading/algorithm';
 
 const PULL_TRIGGER = 80;
 const PULL_MAX = 120;
@@ -31,13 +32,19 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
   const [markOpen, setMarkOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
 
-  const visibleEmails = useMemo(() => {
-    return unreadOnly ? emails.filter((email) => !email.isRead) : emails;
-  }, [emails, unreadOnly]);
+  const threadRows = useMemo(() => {
+    return buildThreads(emails, { sortOrder: 'desc' });
+  }, [emails]);
+
+  const visibleThreads = useMemo(() => {
+    return unreadOnly ? threadRows.filter((thread) => thread.unreadCount > 0) : threadRows;
+  }, [threadRows, unreadOnly]);
 
   const visibleEmailIds = useMemo(() => {
-    return visibleEmails.map((email) => email.id);
-  }, [visibleEmails]);
+    return visibleThreads.flatMap((thread) => thread.emails.map((email) => email.id));
+  }, [visibleThreads]);
+
+  const visibleEmailCount = visibleEmailIds.length;
 
   const allSelected = useMemo(() => {
     return visibleEmailIds.length > 0 && visibleEmailIds.every((id) => selectedEmails.has(id));
@@ -133,12 +140,13 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
           }}
           label="Select all"
         />
-          <div className="text-xs text-ink-subtle">
-          {visibleEmails.length} email{visibleEmails.length === 1 ? '' : 's'}
+        <div className="text-xs text-ink-subtle">
+          {visibleThreads.length} conversation{visibleThreads.length === 1 ? '' : 's'}
+          {visibleEmailCount !== visibleThreads.length ? ` / ${visibleEmailCount} emails` : ''}
         </div>
       </div>
 
-      {isSelectionMode && visibleEmails.length > 0 && (
+      {isSelectionMode && visibleThreads.length > 0 && (
         <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-2 backdrop-blur">
           <div className="text-sm font-medium text-ink">
             {selectedEmails.size} selected
@@ -163,7 +171,7 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
           <EmailListSkeleton />
         ) : error ? (
           <div className="p-6 text-sm text-red-700">{error}</div>
-        ) : visibleEmails.length === 0 ? (
+        ) : visibleThreads.length === 0 ? (
           <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
             <div className="h-14 w-14 rounded-full bg-line/40 flex items-center justify-center mb-3">
               <Inbox className="w-6 h-6 text-ink-muted" />
@@ -173,8 +181,15 @@ export function EmailList({ unreadOnly = false }: { unreadOnly?: boolean }) {
           </div>
         ) : (
           <div className="pb-2">
-            {visibleEmails.map((email) => (
-              <EmailListItem key={email.id} email={email} />
+            {visibleThreads.map((thread) => (
+              <EmailListItem
+                key={thread.id}
+                email={thread.latestEmail}
+                threadEmailIds={thread.emails.map((email) => email.id)}
+                threadCount={thread.emails.length}
+                threadUnreadCount={thread.unreadCount}
+                threadHasStarred={thread.hasStarred}
+              />
             ))}
           </div>
         )}
