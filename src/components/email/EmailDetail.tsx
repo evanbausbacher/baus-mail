@@ -462,7 +462,7 @@ export function EmailDetail({ email }: { email: Email }) {
             </div>
           </div>
 
-          {email.attachments?.length ? <AttachmentsList attachments={email.attachments} /> : null}
+          {email.attachments?.length ? <AttachmentsList attachments={email.attachments} emailId={email.id} /> : null}
 
           {/* HTML/Text toggle (only show if both present) */}
           {canShowHtml && (

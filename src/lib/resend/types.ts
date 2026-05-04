@@ -42,6 +42,12 @@ export interface ResendAttachment {
   content_disposition?: string;
 }
 
+export interface ResendAttachmentDownload extends ResendAttachment {
+  object: 'attachment';
+  download_url: string;
+  expires_at: string;
+}
+
 export interface ResendListResponse<T> {
   object: 'list';
   data: T[];

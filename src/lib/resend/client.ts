@@ -6,6 +6,8 @@ import type {
   ResendSendEmailRequest,
   ResendSendEmailResponse,
   ResendError,
+  ResendAttachment,
+  ResendAttachmentDownload,
 } from "./types";
 import type { Email } from "@/types/email";
 
@@ -135,6 +137,18 @@ export class ResendClient {
     return this.request<ResendReceivedEmail>(`/emails/receiving/${emailId}`);
   }
 
+  async listReceivedEmailAttachments(emailId: string): Promise<ResendListResponse<ResendAttachmentDownload>> {
+    return this.request<ResendListResponse<ResendAttachmentDownload>>(
+      `/emails/receiving/${encodeURIComponent(emailId)}/attachments`
+    );
+  }
+
+  async getReceivedEmailAttachment(emailId: string, attachmentId: string): Promise<ResendAttachmentDownload> {
+    return this.request<ResendAttachmentDownload>(
+      `/emails/receiving/${encodeURIComponent(emailId)}/attachments/${encodeURIComponent(attachmentId)}`
+    );
+  }
+
   // ============================================
   // Sent Emails
   // ============================================
@@ -155,6 +169,18 @@ export class ResendClient {
 
   async getSentEmail(emailId: string): Promise<ResendEmail> {
     return this.request<ResendEmail>(`/emails/${emailId}`);
+  }
+
+  async listSentEmailAttachments(emailId: string): Promise<ResendListResponse<ResendAttachmentDownload>> {
+    return this.request<ResendListResponse<ResendAttachmentDownload>>(
+      `/emails/${encodeURIComponent(emailId)}/attachments`
+    );
+  }
+
+  async getSentEmailAttachment(emailId: string, attachmentId: string): Promise<ResendAttachmentDownload> {
+    return this.request<ResendAttachmentDownload>(
+      `/emails/${encodeURIComponent(emailId)}/attachments/${encodeURIComponent(attachmentId)}`
+    );
   }
 
   // ============================================
@@ -236,7 +262,17 @@ export async function syncSentEmails(
     return client.getSentEmail(email.id);
   });
 
-  const emails: Email[] = full.map((resendEmail) => mapResendSentEmailToEmail(resendEmail, domainId));
+  const emails: Email[] = await mapWithConcurrency(full, RESEND_CONCURRENT_REQUESTS, async (resendEmail) => {
+    let attachments: ResendAttachment[] | null = null;
+    try {
+      const response = await client.listSentEmailAttachments(resendEmail.id);
+      attachments = response.data;
+    } catch {
+      attachments = null;
+    }
+
+    return mapResendSentEmailToEmail(resendEmail, domainId, attachments);
+  });
 
   const nextCursor = response.data.length > 0 ? response.data[0].id : null;
 
@@ -272,16 +308,7 @@ export function mapResendReceivedEmailToEmail(
     html: resendEmail.html || null,
     text: resendEmail.text || null,
     headers: resendEmail.headers || null,
-    attachments: resendEmail.attachments
-      ? resendEmail.attachments.map((a) => ({
-          id: a.id,
-          filename: a.filename,
-          contentType: a.content_type,
-          size: a.size,
-          contentId: a.content_id ?? null,
-          contentDisposition: a.content_disposition ?? null,
-        }))
-      : null,
+    attachments: mapResendAttachmentsToEmailAttachments(resendEmail.attachments),
     inReplyTo: inReplyTo || null,
     references: references || null,
     threadId: resendEmail.message_id || null, // Use message_id as initial thread ID
@@ -297,9 +324,23 @@ export function mapResendReceivedEmailToEmail(
   };
 }
 
+export function mapResendAttachmentsToEmailAttachments(attachments: ResendAttachment[] | null | undefined) {
+  if (!attachments?.length) return null;
+
+  return attachments.map((a) => ({
+    id: a.id,
+    filename: a.filename,
+    contentType: a.content_type,
+    size: a.size,
+    contentId: a.content_id ?? null,
+    contentDisposition: a.content_disposition ?? null,
+  }));
+}
+
 export function mapResendSentEmailToEmail(
   resendEmail: ResendEmail,
-  domainId: string
+  domainId: string,
+  attachments?: ResendAttachment[] | null
 ): Email {
   const inReplyTo = getHeader(resendEmail.headers ?? null, "in-reply-to");
   const references = getHeader(resendEmail.headers ?? null, "references");
@@ -318,7 +359,7 @@ export function mapResendSentEmailToEmail(
     html: resendEmail.html || null,
     text: resendEmail.text || null,
     headers: resendEmail.headers || null,
-    attachments: null,
+    attachments: mapResendAttachmentsToEmailAttachments(attachments),
     inReplyTo: inReplyTo || null,
     references: references || null,
     threadId: null,

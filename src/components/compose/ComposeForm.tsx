@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useEmails } from '@/components/providers/EmailProvider';
@@ -14,6 +14,10 @@ import { SendAsPicker } from './SendAsPicker';
 import { TemplatePreview } from './TemplatePreview';
 
 type ComposeMode = 'mobile' | 'desktop';
+
+const MAX_ATTACHMENT_COUNT = 10;
+const MAX_RAW_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const COMPOSE_ATTACHMENT_LOG_PREFIX = '[BausMail attachments]';
 
 interface ComposeFormProps {
   initial: ComposeDraft;
@@ -42,6 +46,132 @@ function parseEmailCsv(value: string): string[] {
       .map((s) => s.trim())
       .filter(Boolean)
       .map((s) => parseEmailAddress(s).address)
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const idx = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / Math.pow(1024, idx);
+  return `${idx === 0 ? Math.round(value) : Math.round(value * 10) / 10} ${units[idx]}`;
+}
+
+function validateAttachments(files: File[]): string | null {
+  if (files.length > MAX_ATTACHMENT_COUNT) return `Attach up to ${MAX_ATTACHMENT_COUNT} files.`;
+  const total = files.reduce((sum, file) => sum + file.size, 0);
+  if (total > MAX_RAW_ATTACHMENT_BYTES) return 'Attachments must total 25 MB or less.';
+  if (files.some((file) => file.size <= 0)) return 'Attachments cannot be empty.';
+  if (files.some((file) => file.name.length > 255)) return 'Attachment filenames must be 255 characters or fewer.';
+  return null;
+}
+
+function AttachmentRows({
+  files,
+  onRemove,
+}: {
+  files: File[];
+  onRemove: (index: number) => void;
+}) {
+  if (!files.length) return null;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+      {files.map((file, index) => (
+        <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex min-h-12 items-center gap-3 border-b border-line px-3 py-2 last:border-b-0">
+          <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-line/40 text-ink-muted">
+            <FileText className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium text-ink">{file.name}</div>
+            <div className="truncate text-xs text-ink-subtle">{file.type || 'Attachment'} - {formatBytes(file.size)}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            aria-label={`Remove ${file.name}`}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-line/40 hover:text-ink"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AttachmentSummary({
+  files,
+  onRemove,
+}: {
+  files: File[];
+  onRemove: (index: number) => void;
+}) {
+  if (!files.length) return null;
+
+  return (
+    <div className="flex min-w-0 flex-wrap gap-2">
+      {files.map((file, index) => (
+        <div
+          key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+          className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-canvas px-3 py-1.5 text-xs text-ink"
+        >
+          <Paperclip className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
+          <span className="max-w-[180px] truncate sm:max-w-[260px]">{file.name}</span>
+          <span className="shrink-0 text-ink-subtle">{formatBytes(file.size)}</span>
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            aria-label={`Remove ${file.name}`}
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-line/60 hover:text-ink"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AttachButton({
+  disabled,
+  filesCount,
+  onFiles,
+  className,
+}: {
+  disabled: boolean;
+  filesCount: number;
+  onFiles: (files: FileList | null) => void;
+  className?: string;
+}) {
+  return (
+    <label
+      className={clsx(
+        'relative inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl text-ink-muted transition-all hover:bg-line/40',
+        'active:scale-[0.98]',
+        disabled && 'pointer-events-none opacity-50',
+        className
+      )}
+      title="Attach files"
+      aria-label="Attach files"
+    >
+      <Paperclip className="h-5 w-5" />
+      {filesCount > 0 ? (
+        <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold text-white">
+          {filesCount}
+        </span>
+      ) : null}
+      <input
+        type="file"
+        multiple
+        className="sr-only"
+        disabled={disabled}
+        onChange={(e) => {
+          onFiles(e.currentTarget.files);
+          e.currentTarget.value = '';
+        }}
+      />
+    </label>
   );
 }
 
@@ -165,6 +295,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
   const [quoteCollapsed, setQuoteCollapsed] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const lastResetRef = useRef<{ defaultFrom: string; initial: ComposeDraft } | null>(null);
 
@@ -184,6 +315,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     setQuotedBody(replyParts.quotedBody);
     setShowCcBcc((initial.cc?.length ?? 0) > 0 || (initial.bcc?.length ?? 0) > 0);
     setQuoteCollapsed(true);
+    setAttachmentFiles([]);
     setError(null);
   }, [defaultFrom, initial]);
 
@@ -228,6 +360,13 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     setError(null);
 
     try {
+      const attachmentError = validateAttachments(attachmentFiles);
+      if (attachmentError) {
+        setError(attachmentError);
+        setIsSending(false);
+        return;
+      }
+
       const payload = {
         domainId: activeDomain.id,
         from: from.trim(),
@@ -247,10 +386,23 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
         return;
       }
 
+      const formData = new FormData();
+      formData.set('domainId', parsed.data.domainId);
+      formData.set('from', parsed.data.from);
+      formData.set('to', JSON.stringify(parsed.data.to));
+      if (parsed.data.cc) formData.set('cc', JSON.stringify(parsed.data.cc));
+      if (parsed.data.bcc) formData.set('bcc', JSON.stringify(parsed.data.bcc));
+      formData.set('subject', parsed.data.subject);
+      if (parsed.data.text) formData.set('text', parsed.data.text);
+      if (parsed.data.inReplyTo) formData.set('inReplyTo', parsed.data.inReplyTo);
+      if (parsed.data.references) formData.set('references', parsed.data.references);
+      for (const file of attachmentFiles) {
+        formData.append('attachments', file, file.name);
+      }
+
       const res = await fetch('/api/emails/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parsed.data),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -266,6 +418,27 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const addAttachments = (files: FileList | null) => {
+    const selectedFiles = Array.from(files ?? []);
+
+    if (!selectedFiles.length) return;
+    setError(null);
+    setAttachmentFiles((current) => {
+      const next = [...current, ...selectedFiles];
+      const attachmentError = validateAttachments(next);
+
+      if (attachmentError) {
+        setError(attachmentError);
+        return current;
+      }
+      return next;
+    });
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachmentFiles((current) => current.filter((_, i) => i !== index));
   };
 
   if (mode === 'mobile') {
@@ -330,6 +503,8 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
               placeholder="Subject"
             />
 
+            <AttachmentRows files={attachmentFiles} onRemove={removeAttachment} />
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-ink-muted">Message</label>
               <textarea
@@ -354,7 +529,14 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="sticky bottom-0 flex flex-wrap gap-2 bg-surface pb-1 pt-2">
+        <div className="sticky bottom-0 space-y-2 bg-surface pb-1 pt-2">
+          <AttachmentSummary files={attachmentFiles} onRemove={removeAttachment} />
+          <div className="flex flex-wrap gap-2">
+            <AttachButton
+              disabled={isSending}
+              filesCount={attachmentFiles.length}
+              onFiles={addAttachments}
+            />
           <Button
             type="button"
             variant="primary"
@@ -372,9 +554,10 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
           >
             {tab === 'compose' ? 'Preview' : 'Edit'}
           </Button>
-          <Button type="button" variant="ghost" onClick={onClose} disabled={isSending}>
-            Cancel
-          </Button>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isSending}>
+              Cancel
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -476,6 +659,10 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
             className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
           />
         </DesktopFieldRow>
+
+        <div className={clsx('pt-3', !attachmentFiles.length && 'hidden')}>
+          <AttachmentRows files={attachmentFiles} onRemove={removeAttachment} />
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -505,10 +692,21 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
       </div>
 
       <div className="border-t border-line px-5 py-3">
+        <AttachmentSummary files={attachmentFiles} onRemove={removeAttachment} />
         {error ? <p className="pb-3 text-sm text-red-600">{error}</p> : null}
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-ink-subtle">
-            {tab === 'preview' ? 'Previewing rendered output' : quotedHeader || quotedBody ? 'Reply above the quoted thread' : 'Compose your message'}
+        <div className={clsx('flex items-center justify-between gap-3', attachmentFiles.length ? 'mt-3' : '')}>
+          <div className="flex min-w-0 items-center gap-2">
+            <AttachButton
+              disabled={isSending}
+              filesCount={attachmentFiles.length}
+              onFiles={addAttachments}
+              className="h-10 w-10"
+            />
+            <div className="truncate text-xs text-ink-subtle">
+              {attachmentFiles.length
+                ? `${attachmentFiles.length} attachment${attachmentFiles.length === 1 ? '' : 's'} selected`
+                : tab === 'preview' ? 'Previewing rendered output' : quotedHeader || quotedBody ? 'Reply above the quoted thread' : 'Compose your message'}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button

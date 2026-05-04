@@ -107,7 +107,13 @@ async function processSentEmail(event: ResendWebhookEvent) {
 
   const client = new ResendClient(getResendApiKeyForDomain(domain.name));
   const sent = await client.getSentEmail(emailId);
-  const email = mapResendSentEmailToEmail(sent, domain.id);
+  let attachments = null;
+  try {
+    attachments = (await client.listSentEmailAttachments(emailId)).data;
+  } catch {
+    attachments = null;
+  }
+  const email = mapResendSentEmailToEmail(sent, domain.id, attachments);
 
   await upsertEmailRemote(email);
   await updateSyncState(domain.id, 'sent', email.id);

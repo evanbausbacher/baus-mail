@@ -38,6 +38,11 @@ export interface EmailAttachment {
   contentDisposition?: string | null;
 }
 
+export interface SendEmailAttachmentInput {
+  filename: string;
+  content: string;
+}
+
 export interface SendEmailInput {
   domainId: string;
   from: string;
@@ -50,7 +55,7 @@ export interface SendEmailInput {
   replyTo?: string[];
   inReplyTo?: string; // For threading
   references?: string; // For threading
-  attachments?: EmailAttachment[];
+  attachments?: SendEmailAttachmentInput[];
 }
 
 export interface EmailThread {

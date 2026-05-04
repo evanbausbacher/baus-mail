@@ -30,6 +30,10 @@ export const sendEmailSchema = z.object({
   replyTo: z.array(z.string().email()).optional(),
   inReplyTo: z.string().optional(),
   references: z.string().optional(),
+  attachments: z.array(z.object({
+    filename: z.string().min(1).max(255),
+    content: z.string().min(1),
+  })).max(10).optional(),
 });
 
 export const emailActionSchema = z.object({

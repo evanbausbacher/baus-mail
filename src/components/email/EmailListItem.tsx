@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Ellipsis, Mail, MailOpen, Reply, Star } from 'lucide-react';
+import { Ellipsis, Mail, MailOpen, Paperclip, Reply, Star } from 'lucide-react';
 import type { Email } from '@/types/email';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { Checkbox } from '@/components/ui/Checkbox';
@@ -260,6 +260,9 @@ export function EmailListItem({ email }: EmailListItemProps) {
 
             <div className="flex items-center gap-2 mt-0.5">
               <div className="text-xs text-ink-subtle truncate flex-1 min-w-0">{preview}</div>
+              {email.attachments?.length ? (
+                <Paperclip className="w-3.5 h-3.5 text-ink-subtle shrink-0" />
+              ) : null}
               {email.isStarred && (
                 <Star className="w-3.5 h-3.5 text-yellow-500 shrink-0" fill="currentColor" />
               )}
