@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchEmailsSchema } from '@/lib/utils/validation';
-import { searchEmails } from '@/lib/db/queries';
+import { searchEmails, type MailboxView } from '@/lib/db/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,12 +17,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { domainId, query, filters } = parsed.data;
+    const { domainId, query, view, filters } = parsed.data;
+    const mailboxView = view && (
+      view === 'inbox' ||
+      view === 'sent' ||
+      view === 'spam' ||
+      view === 'starred' ||
+      view === 'trash' ||
+      view === 'archive' ||
+      view.startsWith('folder:')
+    )
+      ? (view as MailboxView)
+      : undefined;
 
     const emails = await searchEmails({
       domainId,
       query,
-      limit: 200,
+      view: mailboxView,
+      limit: 50,
       offset: 0,
       filters: {
         type: filters?.type,

@@ -66,6 +66,7 @@ export const updateFolderSchema = z.object({
 export const searchEmailsSchema = z.object({
   domainId: z.string().uuid(),
   query: z.string().min(1),
+  view: z.string().optional(),
   filters: z.object({
     type: z.enum(['sent', 'received']).optional(),
     from: z.string().optional(),

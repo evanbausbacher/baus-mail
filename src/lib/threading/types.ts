@@ -1,16 +1,18 @@
-import { Email } from '@/types/email';
+import type { Email, EmailSummary } from '@/types/email';
 
-export interface ThreadEmail extends Email {
+export type ThreadableEmail = Email | EmailSummary;
+
+export type ThreadEmail<T extends ThreadableEmail = Email> = T & {
   depth: number; // Nesting level in the thread
   position: number; // Position within the thread
-}
+};
 
-export interface EmailThread {
+export interface EmailThread<T extends ThreadableEmail = Email> {
   id: string; // Thread ID (root message-id or computed)
   subject: string; // Normalized subject (without Re:/Fwd:)
-  emails: ThreadEmail[];
-  rootEmail: ThreadEmail;
-  latestEmail: ThreadEmail;
+  emails: ThreadEmail<T>[];
+  rootEmail: ThreadEmail<T>;
+  latestEmail: ThreadEmail<T>;
   participantCount: number;
   unreadCount: number;
   hasStarred: boolean;

@@ -29,6 +29,34 @@ export interface Email {
   labels?: string[] | null;
 }
 
+export interface EmailSummary {
+  id: string;
+  domainId: string;
+  type: EmailType;
+  messageId?: string | null;
+  from: string;
+  to: string[];
+  cc?: string[] | null;
+  bcc?: string[] | null;
+  replyTo?: string[] | null;
+  subject: string;
+  inReplyTo?: string | null;
+  references?: string | null;
+  threadId?: string | null;
+  createdAt: Date;
+  syncedAt: Date;
+  isRead: boolean;
+  isStarred: boolean;
+  isSpam: boolean;
+  isDeleted: boolean;
+  isArchived: boolean;
+  folderId?: string | null;
+  labels?: string[] | null;
+  preview: string;
+  hasAttachments: boolean;
+  attachmentCount: number;
+}
+
 export interface EmailAttachment {
   id: string;
   filename: string;
@@ -58,9 +86,9 @@ export interface SendEmailInput {
   attachments?: SendEmailAttachmentInput[];
 }
 
-export interface EmailThread {
+export interface EmailThread<T extends Email | EmailSummary = Email> {
   id: string;
-  emails: Email[];
+  emails: T[];
   subject: string;
   latestDate: Date;
   unreadCount: number;

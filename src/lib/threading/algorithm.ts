@@ -1,5 +1,4 @@
-import type { Email } from '@/types/email';
-import type { EmailThread, ThreadEmail, ThreadBuildOptions } from './types';
+import type { EmailThread, ThreadEmail, ThreadBuildOptions, ThreadableEmail } from './types';
 import { normalizeSubject, parseEmailAddress } from '@/lib/utils/email-helpers';
 
 const THREAD_DEPTH_ROOT = 0;
@@ -18,7 +17,7 @@ function parseReferences(value: string | null | undefined): string[] {
     .map(normalizeMessageId);
 }
 
-function participantKey(email: Email): string {
+function participantKey(email: ThreadableEmail): string {
   const addresses = new Set<string>();
   const add = (raw: string) => addresses.add(parseEmailAddress(raw).address.toLowerCase());
 
@@ -29,12 +28,12 @@ function participantKey(email: Email): string {
   return Array.from(addresses).sort().join('|');
 }
 
-function fallbackThreadKey(email: Email): string {
+function fallbackThreadKey(email: ThreadableEmail): string {
   return `s:${normalizeSubject(email.subject || '').toLowerCase()}|p:${participantKey(email)}`;
 }
 
 function chooseThreadKey(
-  email: Email,
+  email: ThreadableEmail,
   messageIdToThreadKey: Map<string, string>,
   fallbackKeyToThreadKey: Map<string, string>
 ): string {
@@ -69,7 +68,7 @@ function dateFromUnknown(value: unknown): Date {
   return new Date(String(value));
 }
 
-export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): EmailThread[] {
+export function buildThreads<T extends ThreadableEmail>(allEmails: T[], options?: ThreadBuildOptions): EmailThread<T>[] {
   const includeDeleted = options?.includeDeleted ?? false;
   const includeSpam = options?.includeSpam ?? false;
 
@@ -83,7 +82,7 @@ export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): 
 
   const messageIdToThreadKey = new Map<string, string>();
   const fallbackKeyToThreadKey = new Map<string, string>();
-  const threadKeyToEmails = new Map<string, Email[]>();
+  const threadKeyToEmails = new Map<string, T[]>();
 
   for (const email of emails) {
     const key = chooseThreadKey(email, messageIdToThreadKey, fallbackKeyToThreadKey);
@@ -101,14 +100,14 @@ export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): 
     threadKeyToEmails.set(key, arr);
   }
 
-  const threads: EmailThread[] = [];
+  const threads: EmailThread<T>[] = [];
 
   for (const [threadKey, threadEmails] of threadKeyToEmails.entries()) {
     const sorted = [...threadEmails].sort(
       (a, b) => dateFromUnknown(a.createdAt).getTime() - dateFromUnknown(b.createdAt).getTime()
     );
 
-    const computeDepth = (email: Email): number => {
+    const computeDepth = (email: ThreadableEmail): number => {
       const refs = parseReferences(email.references);
       if (refs.length === 0) return THREAD_DEPTH_ROOT;
 
@@ -121,7 +120,7 @@ export function buildThreads(allEmails: Email[], options?: ThreadBuildOptions): 
       return depth;
     };
 
-    const threadEmailsWithMeta: ThreadEmail[] = sorted.map((e, idx) => ({
+    const threadEmailsWithMeta: ThreadEmail<T>[] = sorted.map((e, idx) => ({
       ...e,
       depth: computeDepth(e),
       position: idx,

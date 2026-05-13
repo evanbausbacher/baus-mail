@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getEmailsByDomain } from '@/lib/db/queries';
+import { getEmailSummariesByDomain } from '@/lib/db/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Domain ID is required' }, { status: 400 });
     }
 
-    const emails = await getEmailsByDomain(domainId, 'sent', {
+    const emails = await getEmailSummariesByDomain(domainId, 'sent', {
       limit: limit + 1,
       offset,
       cursor,

@@ -1,14 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import type { Email } from '@/types/email';
+import type { Email, EmailSummary } from '@/types/email';
 import type { ComposeDraft } from '@/lib/compose/draft';
 import { buildDraftFromEmail } from '@/lib/compose/draft';
 
 export type EmailView = 'inbox' | 'sent' | 'starred' | 'spam' | 'trash' | 'archive' | `folder:${string}`;
 
 interface EmailContextType {
-  emails: Email[];
+  emails: EmailSummary[];
   selectedEmails: Set<string>;
   isSelectionMode: boolean;
   isLoading: boolean;
@@ -21,10 +21,12 @@ interface EmailContextType {
   setSelectedEmail: React.Dispatch<React.SetStateAction<Email | null>>;
   setSearchQuery: (query: string) => void;
   runSearch: (domainId: string, view: EmailView, query: string) => Promise<void>;
+  selectEmail: (email: EmailSummary) => Promise<void>;
+  fetchFullEmail: (email: Email | EmailSummary) => Promise<Email>;
   openComposeNew: () => void;
-  openComposeReply: (email: Email) => void;
-  openComposeReplyAll: (email: Email) => void;
-  openComposeForward: (email: Email) => void;
+  openComposeReply: (email: Email | EmailSummary) => Promise<void>;
+  openComposeReplyAll: (email: Email | EmailSummary) => Promise<void>;
+  openComposeForward: (email: Email | EmailSummary) => Promise<void>;
   closeCompose: () => void;
   loadEmails: (domainId: string, view: EmailView) => Promise<void>;
   toggleEmailSelection: (emailId: string | string[]) => void;
@@ -38,7 +40,7 @@ interface EmailContextType {
 const EmailContext = createContext<EmailContextType | undefined>(undefined);
 
 export function EmailProvider({ children }: { children: React.ReactNode }) {
-  const [emails, setEmails] = useState<Email[]>([]);
+  const [emails, setEmails] = useState<EmailSummary[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,6 +74,45 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const hydrateEmailSummary = useCallback((raw: unknown): EmailSummary => {
+    const base = raw as unknown as Omit<EmailSummary, 'createdAt' | 'syncedAt'> & {
+      createdAt: unknown;
+      syncedAt: unknown;
+    };
+
+    const toDate = (value: unknown) => {
+      if (value instanceof Date) return value;
+      if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+      return new Date(String(value));
+    };
+
+    return {
+      ...base,
+      createdAt: toDate(base.createdAt),
+      syncedAt: toDate(base.syncedAt),
+    };
+  }, []);
+
+  const fetchFullEmail = useCallback(async (email: Email | EmailSummary): Promise<Email> => {
+    if ('html' in email || 'text' in email || 'headers' in email || 'attachments' in email) {
+      return email as Email;
+    }
+
+    const endpoint = email.type === 'sent' ? `/api/emails/sent/${email.id}` : `/api/emails/received/${email.id}`;
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      throw new Error('Failed to load email');
+    }
+
+    const data = await response.json();
+    return hydrateEmail(data.email);
+  }, [hydrateEmail]);
+
+  const selectEmail = useCallback(async (email: EmailSummary) => {
+    const fullEmail = await fetchFullEmail(email);
+    setSelectedEmail(fullEmail);
+  }, [fetchFullEmail]);
+
   const loadEmails = useCallback(async (domainId: string, view: EmailView) => {
     const requestId = ++requestSeq.current;
     const isCurrentRequest = () => requestSeq.current === requestId;
@@ -81,63 +122,25 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     setCurrentDomainId(domainId);
 
     try {
-      const fetchEmails = async (endpoint: string, params?: Record<string, string>) => {
-        const sp = new URLSearchParams({ domainId, ...(params ?? {}) });
-        const response = await fetch(`${endpoint}?${sp.toString()}`);
+      const fetchEmails = async () => {
+        const sp = new URLSearchParams({ domainId, view });
+        const response = await fetch(`/api/emails?${sp.toString()}`);
         if (!response.ok) {
           throw new Error(`Failed to load emails: ${response.statusText}`);
         }
         const data = await response.json();
-        return (data.emails || []).map(hydrateEmail) as Email[];
+        return (data.emails || []).map(hydrateEmailSummary) as EmailSummary[];
       };
 
-      let fetched: Email[] = [];
-
-      if (view === 'sent') {
-        fetched = await fetchEmails('/api/emails/sent');
-      } else if (view === 'inbox' || view === 'spam') {
-        fetched = await fetchEmails('/api/emails/received');
-      } else if (view === 'starred' || view === 'trash') {
-        const [received, sent] = await Promise.all([
-          fetchEmails('/api/emails/received', view === 'trash' ? { includeDeleted: 'true' } : undefined),
-          fetchEmails('/api/emails/sent', view === 'trash' ? { includeDeleted: 'true' } : undefined),
-        ]);
-        fetched = [...received, ...sent];
-      } else if (view === 'archive' || view.startsWith('folder:')) {
-        const [received, sent] = await Promise.all([
-          fetchEmails('/api/emails/received'),
-          fetchEmails('/api/emails/sent'),
-        ]);
-        fetched = [...received, ...sent];
-      }
-
-      let filtered = fetched;
-      const folderId = view.startsWith('folder:') ? view.slice('folder:'.length) : null;
-
-      if (view === 'starred') {
-        filtered = filtered.filter((e) => e.isStarred && !e.isDeleted);
-      } else if (view === 'spam') {
-        filtered = filtered.filter((e) => e.isSpam && !e.isDeleted);
-      } else if (view === 'trash') {
-        filtered = filtered.filter((e) => e.isDeleted);
-      } else if (view === 'archive') {
-        filtered = filtered.filter((e) => e.isArchived && !e.isDeleted && !e.isSpam);
-      } else if (folderId) {
-        filtered = filtered.filter((e) => e.folderId === folderId && !e.isDeleted && !e.isSpam && !e.isArchived);
-      } else if (view === 'inbox') {
-        filtered = filtered.filter((e) => e.type === 'received' && !e.isDeleted && !e.isSpam && !e.isArchived && !e.folderId);
-      } else if (view === 'sent') {
-        filtered = filtered.filter((e) => e.type === 'sent' && !e.isDeleted);
-      }
-
-      filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const filtered = await fetchEmails();
 
       if (!isCurrentRequest()) return;
 
       setEmails(filtered);
       setSelectedEmail((prev) => {
         if (!prev) return prev;
-        return filtered.find((e) => e.id === prev.id && e.domainId === domainId) ?? null;
+        const updatedSummary = filtered.find((e) => e.id === prev.id && e.domainId === domainId);
+        return updatedSummary ? { ...prev, ...updatedSummary } : null;
       });
     } catch (err) {
       if (!isCurrentRequest()) return;
@@ -147,7 +150,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (isCurrentRequest()) setIsLoading(false);
     }
-  }, [hydrateEmail]);
+  }, [hydrateEmailSummary]);
 
   const runSearch = useCallback(
     async (domainId: string, view: EmailView, query: string) => {
@@ -171,9 +174,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({
             domainId,
             query: q,
-            filters: {
-              type: view === 'sent' ? 'sent' : view === 'inbox' || view === 'spam' ? 'received' : undefined,
-            },
+            view,
           }),
         });
 
@@ -183,23 +184,15 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
         }
 
         const data = await res.json();
-        let filtered = (data.emails || []).map(hydrateEmail) as Email[];
-
-        if (view === 'starred') filtered = filtered.filter((e) => e.isStarred && !e.isDeleted);
-        if (view === 'spam') filtered = filtered.filter((e) => e.isSpam && !e.isDeleted);
-        if (view === 'trash') filtered = filtered.filter((e) => e.isDeleted);
-        if (view === 'archive') filtered = filtered.filter((e) => e.isArchived && !e.isDeleted && !e.isSpam);
-        if (view.startsWith('folder:')) {
-          const folderId = view.slice('folder:'.length);
-          filtered = filtered.filter((e) => e.folderId === folderId && !e.isDeleted && !e.isSpam && !e.isArchived);
-        }
-        if (view === 'inbox') filtered = filtered.filter((e) => e.type === 'received' && !e.isDeleted && !e.isSpam && !e.isArchived && !e.folderId);
-        if (view === 'sent') filtered = filtered.filter((e) => e.type === 'sent' && !e.isDeleted);
-
+        const filtered = (data.emails || []).map(hydrateEmailSummary) as EmailSummary[];
         filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         if (!isCurrentRequest()) return;
         setEmails(filtered);
-        setSelectedEmail((prev) => (prev ? filtered.find((e) => e.id === prev.id && e.domainId === domainId) ?? null : prev));
+        setSelectedEmail((prev) => {
+          if (!prev) return prev;
+          const updatedSummary = filtered.find((e) => e.id === prev.id && e.domainId === domainId);
+          return updatedSummary ? { ...prev, ...updatedSummary } : null;
+        });
       } catch (err) {
         if (!isCurrentRequest()) return;
         setError(err instanceof Error ? err.message : 'Failed to search');
@@ -209,7 +202,7 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
         if (isCurrentRequest()) setIsLoading(false);
       }
     },
-    [hydrateEmail, loadEmails]
+    [hydrateEmailSummary, loadEmails]
   );
 
   const refreshEmails = useCallback(async (domainId?: string) => {
@@ -276,17 +269,18 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     setCompose({ isOpen: true, draft: { mode: 'new' } });
   }, []);
 
-  const openComposeReply = useCallback((email: Email) => {
-    setCompose({ isOpen: true, draft: buildDraftFromEmail('reply', email) });
-  }, []);
+  const openComposeReply = useCallback(async (email: Email | EmailSummary) => {
+    setCompose({ isOpen: true, draft: buildDraftFromEmail('reply', await fetchFullEmail(email)) });
+  }, [fetchFullEmail]);
 
-  const openComposeReplyAll = useCallback((email: Email) => {
-    setCompose({ isOpen: true, draft: buildDraftFromEmail('replyAll', email, email.to?.[0]) });
-  }, []);
+  const openComposeReplyAll = useCallback(async (email: Email | EmailSummary) => {
+    const fullEmail = await fetchFullEmail(email);
+    setCompose({ isOpen: true, draft: buildDraftFromEmail('replyAll', fullEmail, fullEmail.to?.[0]) });
+  }, [fetchFullEmail]);
 
-  const openComposeForward = useCallback((email: Email) => {
-    setCompose({ isOpen: true, draft: buildDraftFromEmail('forward', email) });
-  }, []);
+  const openComposeForward = useCallback(async (email: Email | EmailSummary) => {
+    setCompose({ isOpen: true, draft: buildDraftFromEmail('forward', await fetchFullEmail(email)) });
+  }, [fetchFullEmail]);
 
   const closeCompose = useCallback(() => {
     setCompose((prev) => ({ ...prev, isOpen: false }));
@@ -306,6 +300,8 @@ export function EmailProvider({ children }: { children: React.ReactNode }) {
     setSelectedEmail,
     setSearchQuery,
     runSearch,
+    selectEmail,
+    fetchFullEmail,
     openComposeNew,
     openComposeReply,
     openComposeReplyAll,

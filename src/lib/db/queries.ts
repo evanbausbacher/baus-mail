@@ -1,8 +1,8 @@
-import { eq, and, or, desc, sql, inArray, lt } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray, lt, isNull, gte } from "drizzle-orm";
 import { db } from "./index";
 import { domains, emails, folders, syncState } from "./schema";
 import type { Domain, CreateDomainInput, UpdateDomainInput } from "@/types/domain";
-import type { Email, EmailType } from "@/types/email";
+import type { Email, EmailSummary, EmailType } from "@/types/email";
 import type { MailFolder } from "@/types/folder";
 import { buildThreads } from "@/lib/threading/algorithm";
 
@@ -10,6 +10,40 @@ type DomainRow = typeof domains.$inferSelect;
 type EmailRow = typeof emails.$inferSelect;
 type EmailInsertRow = typeof emails.$inferInsert;
 type FolderRow = typeof folders.$inferSelect;
+export type MailboxView = "inbox" | "sent" | "spam" | "starred" | "trash" | "archive" | `folder:${string}`;
+type EmailSummaryRow = Pick<
+  EmailRow,
+  | "id"
+  | "domainId"
+  | "type"
+  | "messageId"
+  | "from"
+  | "to"
+  | "cc"
+  | "bcc"
+  | "replyTo"
+  | "subject"
+  | "inReplyTo"
+  | "references"
+  | "threadId"
+  | "createdAt"
+  | "syncedAt"
+  | "isRead"
+  | "isStarred"
+  | "isSpam"
+  | "isDeleted"
+  | "isArchived"
+  | "folderId"
+  | "labels"
+> & {
+  preview: string | null;
+  hasAttachments: boolean | null;
+  attachmentCount: number | null;
+};
+
+const SUMMARY_PREVIEW_LENGTH = 120;
+const THREAD_FALLBACK_LIMIT = 150;
+const THREAD_FALLBACK_DAYS = 180;
 
 // ============================================
 // Domain Queries
@@ -216,6 +250,150 @@ export async function deleteFolder(id: string): Promise<void> {
 // Email Queries
 // ============================================
 
+function emailSummarySelection() {
+  const attachmentCount = sql<number>`
+    case
+      when ${emails.attachments} is null or ${emails.attachments} = '' then 0
+      else jsonb_array_length(${emails.attachments}::jsonb)
+    end
+  `;
+
+  return {
+    id: emails.id,
+    domainId: emails.domainId,
+    type: emails.type,
+    messageId: emails.messageId,
+    from: emails.from,
+    to: emails.to,
+    cc: emails.cc,
+    bcc: emails.bcc,
+    replyTo: emails.replyTo,
+    subject: emails.subject,
+    inReplyTo: emails.inReplyTo,
+    references: emails.references,
+    threadId: emails.threadId,
+    createdAt: emails.createdAt,
+    syncedAt: emails.syncedAt,
+    isRead: emails.isRead,
+    isStarred: emails.isStarred,
+    isSpam: emails.isSpam,
+    isDeleted: emails.isDeleted,
+    isArchived: emails.isArchived,
+    folderId: emails.folderId,
+    labels: emails.labels,
+    preview: sql<string>`
+      left(
+        regexp_replace(
+          coalesce(nullif(${emails.text}, ''), regexp_replace(coalesce(${emails.html}, ''), '<[^>]+>', ' ', 'g')),
+          '\\s+',
+          ' ',
+          'g'
+        ),
+        ${SUMMARY_PREVIEW_LENGTH}
+      )
+    `,
+    hasAttachments: sql<boolean>`(${attachmentCount}) > 0`,
+    attachmentCount,
+  };
+}
+
+function mailboxWhere(domainId: string, view: MailboxView, cursor?: Date) {
+  const base = [
+    eq(emails.domainId, domainId),
+    cursor ? lt(emails.createdAt, cursor) : undefined,
+  ];
+
+  if (view.startsWith("folder:")) {
+    return and(
+      ...base,
+      eq(emails.folderId, view.slice("folder:".length)),
+      eq(emails.isDeleted, false),
+      eq(emails.isSpam, false),
+      eq(emails.isArchived, false)
+    );
+  }
+
+  if (view === "sent") {
+    return and(...base, eq(emails.type, "sent"), eq(emails.isDeleted, false));
+  }
+
+  if (view === "spam") {
+    return and(...base, eq(emails.type, "received"), eq(emails.isSpam, true), eq(emails.isDeleted, false));
+  }
+
+  if (view === "starred") {
+    return and(...base, eq(emails.isStarred, true), eq(emails.isDeleted, false));
+  }
+
+  if (view === "trash") {
+    return and(...base, eq(emails.isDeleted, true));
+  }
+
+  if (view === "archive") {
+    return and(...base, eq(emails.isArchived, true), eq(emails.isDeleted, false), eq(emails.isSpam, false));
+  }
+
+  return and(
+    ...base,
+    eq(emails.type, "received"),
+    eq(emails.isDeleted, false),
+    eq(emails.isSpam, false),
+    eq(emails.isArchived, false),
+    isNull(emails.folderId)
+  );
+}
+
+export async function getMailboxEmailSummaries(
+  domainId: string,
+  view: MailboxView,
+  options?: {
+    limit?: number;
+    cursor?: Date;
+  }
+): Promise<EmailSummary[]> {
+  const limit = options?.limit || 100;
+
+  const result = await db
+    .select(emailSummarySelection())
+    .from(emails)
+    .where(mailboxWhere(domainId, view, options?.cursor))
+    .orderBy(desc(emails.createdAt))
+    .limit(limit);
+
+  return result.map(mapEmailSummaryFromDb);
+}
+
+export async function getEmailSummariesByDomain(
+  domainId: string,
+  type?: EmailType,
+  options?: {
+    limit?: number;
+    offset?: number;
+    cursor?: Date;
+    includeDeleted?: boolean;
+  }
+): Promise<EmailSummary[]> {
+  const limit = options?.limit || 100;
+  const offset = options?.offset || 0;
+
+  const result = await db
+    .select(emailSummarySelection())
+    .from(emails)
+    .where(
+      and(
+        eq(emails.domainId, domainId),
+        type ? eq(emails.type, type) : undefined,
+        options?.cursor ? lt(emails.createdAt, options.cursor) : undefined,
+        !options?.includeDeleted ? eq(emails.isDeleted, false) : undefined
+      )
+    )
+    .orderBy(desc(emails.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return result.map(mapEmailSummaryFromDb);
+}
+
 export async function getEmailsByDomain(
   domainId: string,
   type?: EmailType,
@@ -254,8 +432,7 @@ export async function getEmailContentState(emailIds: string[]): Promise<Map<stri
   const result = await db
     .select({
       id: emails.id,
-      html: emails.html,
-      text: emails.text,
+      hasContent: sql<boolean>`coalesce(length(nullif(${emails.html}, '')), 0) > 0 or coalesce(length(nullif(${emails.text}, '')), 0) > 0`,
     })
     .from(emails)
     .where(inArray(emails.id, emailIds));
@@ -263,7 +440,7 @@ export async function getEmailContentState(emailIds: string[]): Promise<Map<stri
   return new Map(
     result.map((row) => [
       row.id,
-      Boolean(row.html?.trim() || row.text?.trim()),
+      Boolean(row.hasContent),
     ])
   );
 }
@@ -271,6 +448,72 @@ export async function getEmailContentState(emailIds: string[]): Promise<Map<stri
 export async function getEmailById(id: string): Promise<Email | null> {
   const result = await db.select().from(emails).where(eq(emails.id, id)).limit(1);
   return result.length > 0 ? mapEmailFromDb(result[0]) : null;
+}
+
+async function getEmailsByIds(ids: string[]): Promise<Email[]> {
+  if (ids.length === 0) return [];
+
+  const result = await db.select().from(emails).where(inArray(emails.id, ids));
+  const byId = new Map(result.map((row) => [row.id, mapEmailFromDb(row)]));
+  return ids.map((id) => byId.get(id)).filter((email): email is Email => Boolean(email));
+}
+
+function normalizeThreadSubject(value: string): string {
+  return value
+    .replace(/^(\s*(re|fw|fwd)\s*:\s*)+/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+function extractAddress(value: string): string {
+  const match = value.match(/<([^>]+)>/);
+  return (match?.[1] ?? value).trim().toLowerCase();
+}
+
+function getThreadParticipantNeedles(email: Email): string[] {
+  const values = new Set<string>();
+  const add = (value: string | null | undefined) => {
+    if (!value) return;
+    const address = extractAddress(value);
+    if (address) values.add(address);
+  };
+
+  add(email.from);
+  for (const to of email.to ?? []) add(to);
+  for (const cc of email.cc ?? []) add(cc);
+
+  return Array.from(values).slice(0, 8);
+}
+
+function threadFallbackWhere(email: Email) {
+  const subject = normalizeThreadSubject(email.subject || "");
+  const participantNeedles = getThreadParticipantNeedles(email);
+  const since = new Date(email.createdAt);
+  since.setDate(since.getDate() - THREAD_FALLBACK_DAYS);
+
+  const subjectClause = subject
+    ? sql`lower(regexp_replace(${emails.subject}, '^(\\s*(re|fw|fwd)\\s*:\\s*)+', '', 'i')) = ${subject}`
+    : sql`coalesce(nullif(trim(${emails.subject}), ''), '') = ''`;
+
+  const participantClause = participantNeedles.length > 0
+    ? or(
+        ...participantNeedles.flatMap((address) => {
+          const likeAddress = `%${address}%`;
+          return [
+            sql`lower(${emails.from}) like ${likeAddress}`,
+            sql`lower(${emails.to}) like ${likeAddress}`,
+            sql`lower(coalesce(${emails.cc}, '')) like ${likeAddress}`,
+          ];
+        })
+      )
+    : undefined;
+
+  return and(
+    eq(emails.domainId, email.domainId),
+    gte(emails.createdAt, since),
+    subjectClause,
+    participantClause
+  );
 }
 
 export async function getEmailThreadById(id: string): Promise<Email[]> {
@@ -290,21 +533,23 @@ export async function getEmailThreadById(id: string): Promise<Email[]> {
   }
 
   const domainEmails = await db
-    .select()
+    .select(emailSummarySelection())
     .from(emails)
-    .where(eq(emails.domainId, email.domainId))
-    .orderBy(emails.createdAt);
+    .where(threadFallbackWhere(email))
+    .orderBy(desc(emails.createdAt))
+    .limit(THREAD_FALLBACK_LIMIT);
 
-  const hydrated = domainEmails.map(mapEmailFromDb);
+  const hydrated = domainEmails.map(mapEmailSummaryFromDb);
   const threads = buildThreads(hydrated, { includeDeleted: true, includeSpam: true, sortOrder: "asc" });
   const thread = threads.find((candidate) => candidate.emails.some((entry) => entry.id === id));
 
-  return thread ? [...thread.emails] : [email];
+  return thread ? getEmailsByIds(thread.emails.map((entry) => entry.id)) : [email];
 }
 
 export async function searchEmails(params: {
   domainId: string;
   query: string;
+  view?: MailboxView;
   limit?: number;
   offset?: number;
   filters?: {
@@ -321,7 +566,7 @@ export async function searchEmails(params: {
     dateFrom?: string;
     dateTo?: string;
   };
-}): Promise<Email[]> {
+}): Promise<EmailSummary[]> {
   const limit = params.limit ?? 100;
   const offset = params.offset ?? 0;
 
@@ -344,7 +589,7 @@ export async function searchEmails(params: {
   const dateTo = f?.dateTo ? new Date(f.dateTo) : null;
 
   const where = and(
-    eq(emails.domainId, params.domainId),
+    params.view ? mailboxWhere(params.domainId, params.view) : eq(emails.domainId, params.domainId),
     f?.type ? eq(emails.type, f.type) : undefined,
     f?.isRead !== undefined ? eq(emails.isRead, f.isRead) : undefined,
     f?.isStarred !== undefined ? eq(emails.isStarred, f.isStarred) : undefined,
@@ -361,14 +606,14 @@ export async function searchEmails(params: {
   );
 
   const result = await db
-    .select()
+    .select(emailSummarySelection())
     .from(emails)
     .where(where)
     .orderBy(desc(emails.createdAt))
     .limit(limit)
     .offset(offset);
 
-  return result.map(mapEmailFromDb);
+  return result.map(mapEmailSummaryFromDb);
 }
 
 export async function createEmail(email: Omit<Email, "syncedAt">): Promise<Email> {
@@ -542,9 +787,9 @@ export async function updateEmailFlags(
   if (flags.isArchived !== undefined) updates.isArchived = flags.isArchived;
   if (flags.folderId !== undefined) updates.folderId = flags.folderId;
 
-  for (const emailId of emailIds) {
-    await db.update(emails).set(updates).where(eq(emails.id, emailId));
-  }
+  if (Object.keys(updates).length === 0) return;
+
+  await db.update(emails).set(updates).where(inArray(emails.id, emailIds));
 }
 
 // ============================================
@@ -668,6 +913,42 @@ function mapEmailFromDb(row: EmailRow): Email {
     isArchived: Boolean(row.isArchived),
     folderId: row.folderId,
     labels: row.labels ? JSON.parse(row.labels) : null,
+  };
+}
+
+function mapEmailSummaryFromDb(row: EmailSummaryRow): EmailSummary {
+  const toDate = (value: unknown) => {
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") return new Date(value);
+    return new Date(String(value));
+  };
+
+  return {
+    id: row.id,
+    domainId: row.domainId,
+    type: row.type as EmailType,
+    messageId: row.messageId,
+    from: row.from,
+    to: JSON.parse(row.to),
+    cc: row.cc ? JSON.parse(row.cc) : null,
+    bcc: row.bcc ? JSON.parse(row.bcc) : null,
+    replyTo: row.replyTo ? JSON.parse(row.replyTo) : null,
+    subject: row.subject,
+    inReplyTo: row.inReplyTo,
+    references: row.references,
+    threadId: row.threadId,
+    createdAt: toDate(row.createdAt),
+    syncedAt: toDate(row.syncedAt),
+    isRead: Boolean(row.isRead),
+    isStarred: Boolean(row.isStarred),
+    isSpam: Boolean(row.isSpam),
+    isDeleted: Boolean(row.isDeleted),
+    isArchived: Boolean(row.isArchived),
+    folderId: row.folderId,
+    labels: row.labels ? JSON.parse(row.labels) : null,
+    preview: row.preview ?? "",
+    hasAttachments: Boolean(row.hasAttachments),
+    attachmentCount: Number(row.attachmentCount ?? 0),
   };
 }
 

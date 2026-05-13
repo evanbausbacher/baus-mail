@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Ellipsis, Mail, MailOpen, Paperclip, Reply, Star } from 'lucide-react';
-import type { Email } from '@/types/email';
+import type { EmailSummary } from '@/types/email';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { ActionSheet, ActionSheetButton } from '@/components/ui/ActionSheet';
@@ -13,7 +13,7 @@ import { getInitials, avatarColor } from '@/lib/utils/avatar';
 import { useEmailActions } from '@/hooks/useEmailActions';
 
 interface EmailListItemProps {
-  email: Email;
+  email: EmailSummary;
   threadEmailIds?: string[];
   threadCount?: number;
   threadUnreadCount?: number;
@@ -38,7 +38,7 @@ export function EmailListItem({
     isSelectionMode,
     toggleEmailSelection,
     selectedEmail,
-    setSelectedEmail,
+    selectEmail,
     openComposeReply,
     openComposeReplyAll,
     openComposeForward,
@@ -68,7 +68,7 @@ export function EmailListItem({
       ? `To: ${displayName}`
       : displayName;
 
-  const preview = getEmailPreview(email.text ?? null, email.html ?? null, 90);
+  const preview = getEmailPreview(email.preview, null, 90);
 
   // ---- Swipe handling (touch / pointer) ----
   const startX = useRef<number | null>(null);
@@ -227,7 +227,7 @@ export function EmailListItem({
             return;
           }
           if (isSelectionMode) toggleEmailSelection(actionEmailIds);
-          else setSelectedEmail(email);
+          else void selectEmail(email);
         }}
       >
         <div className="flex items-start gap-3">
@@ -282,7 +282,7 @@ export function EmailListItem({
 
             <div className="flex items-center gap-2 mt-0.5">
               <div className="text-xs text-ink-subtle truncate flex-1 min-w-0">{preview}</div>
-              {email.attachments?.length ? (
+              {email.hasAttachments ? (
                 <Paperclip className="w-3.5 h-3.5 text-ink-subtle shrink-0" />
               ) : null}
               {hasStarred && (
