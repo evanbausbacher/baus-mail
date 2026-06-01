@@ -965,9 +965,10 @@ function normalizeFromAddresses(addresses: string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const address of addresses) {
-    const normalized = address.trim().toLowerCase();
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
+    const normalized = address.trim();
+    const key = extractEmailAddress(normalized);
+    if (!normalized || seen.has(key)) continue;
+    seen.add(key);
     result.push(normalized);
   }
   return result;

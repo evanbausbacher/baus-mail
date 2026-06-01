@@ -22,12 +22,12 @@ export function SendAsPicker({ aliases, value, onChange, domainFallback }: SendA
       <div>
         <label className="block text-sm font-medium text-ink-muted mb-1.5">From</label>
         <input
-          type="email"
+          type="text"
           inputMode="email"
           autoCapitalize="none"
           value={display}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="support@example.com"
+          placeholder="Your Name <support@example.com>"
           className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-ink text-base focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60"
         />
       </div>

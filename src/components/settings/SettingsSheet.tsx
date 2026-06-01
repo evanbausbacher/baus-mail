@@ -266,7 +266,7 @@ function DomainRow({ domain }: { domain: Domain }) {
 
   const handleSaveFromAddresses = async () => {
     const addresses = fromAddresses
-      .map((address) => address.trim().toLowerCase())
+      .map((address) => address.trim())
       .filter(Boolean);
 
     if (addresses.length === 0) {
@@ -448,12 +448,12 @@ function FromAddressEditor({
         {addresses.map((address, index) => (
           <div key={index} className="grid grid-cols-[minmax(0,1fr)_40px] gap-2">
             <input
-              type="email"
+              type="text"
               inputMode="email"
               autoCapitalize="none"
               value={address}
               onChange={(e) => setAddress(index, e.target.value)}
-              placeholder={`support@${domainName}`}
+              placeholder={`Your Name <support@${domainName}>`}
               className="h-10 min-w-0 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/20"
             />
             <Button

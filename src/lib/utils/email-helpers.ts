@@ -13,6 +13,14 @@ export function parseEmailAddress(email: string): { name?: string; address: stri
   return { address: email.trim() };
 }
 
+export function isValidEmailAddress(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+export function isValidSenderAddress(value: string): boolean {
+  return isValidEmailAddress(parseEmailAddress(value).address);
+}
+
 export function formatEmailAddress(email: string): string {
   const parsed = parseEmailAddress(email);
   return parsed.name ? `${parsed.name}` : parsed.address;

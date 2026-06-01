@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import { isValidSenderAddress } from './email-helpers';
+
+const senderAddressSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine(isValidSenderAddress, 'Invalid email address');
 
 // Domain validation schemas
 export const createDomainSchema = z.object({
@@ -15,13 +22,13 @@ export const updateDomainSchema = z.object({
     .regex(/^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/)
     .nullable()
     .optional(),
-  fromAddresses: z.array(z.string().email()).max(20).optional(),
+  fromAddresses: z.array(senderAddressSchema).max(20).optional(),
 });
 
 // Email validation schemas
 export const sendEmailSchema = z.object({
-  domainId: z.string().uuid(),
-  from: z.string().email(),
+  domainId: z.string().min(1),
+  from: senderAddressSchema,
   to: z.array(z.string().email()).min(1, 'At least one recipient is required').max(50),
   subject: z.string().min(1, 'Subject is required'),
   text: z.string().optional(),
@@ -55,7 +62,7 @@ export const emailActionSchema = z.object({
 });
 
 export const createFolderSchema = z.object({
-  domainId: z.string().uuid(),
+  domainId: z.string().min(1),
   name: z.string().trim().min(1, 'Folder name is required').max(80),
 });
 
@@ -64,7 +71,7 @@ export const updateFolderSchema = z.object({
 });
 
 export const searchEmailsSchema = z.object({
-  domainId: z.string().uuid(),
+  domainId: z.string().min(1),
   query: z.string().min(1),
   view: z.string().optional(),
   filters: z.object({

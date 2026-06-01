@@ -17,13 +17,14 @@ type ComposeMode = 'mobile' | 'desktop';
 
 const MAX_ATTACHMENT_COUNT = 10;
 const MAX_RAW_ATTACHMENT_BYTES = 25 * 1024 * 1024;
-const COMPOSE_ATTACHMENT_LOG_PREFIX = '[BausMail attachments]';
 
 interface ComposeFormProps {
   initial: ComposeDraft;
   mode: ComposeMode;
   onClose: () => void;
 }
+
+type ComposeFieldErrors = Partial<Record<'from' | 'to' | 'cc' | 'bcc' | 'subject', string>>;
 
 function uniqEmails(values: string[]): string[] {
   const out: string[] = [];
@@ -47,6 +48,20 @@ function parseEmailCsv(value: string): string[] {
       .filter(Boolean)
       .map((s) => parseEmailAddress(s).address)
   );
+}
+
+function composeValidationErrors(fieldErrors: Record<string, string[] | undefined>): ComposeFieldErrors {
+  return {
+    from: fieldErrors.from?.[0],
+    to: fieldErrors.to?.[0],
+    cc: fieldErrors.cc?.[0],
+    bcc: fieldErrors.bcc?.[0],
+    subject: fieldErrors.subject?.[0],
+  };
+}
+
+function firstComposeError(errors: ComposeFieldErrors): string {
+  return errors.from ?? errors.to ?? errors.cc ?? errors.bcc ?? errors.subject ?? 'Please fix the fields marked below.';
 }
 
 function formatBytes(bytes: number): string {
@@ -295,6 +310,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
   const [quoteCollapsed, setQuoteCollapsed] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ComposeFieldErrors>({});
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const lastResetRef = useRef<{ defaultFrom: string; initial: ComposeDraft } | null>(null);
@@ -317,6 +333,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     setQuoteCollapsed(true);
     setAttachmentFiles([]);
     setError(null);
+    setFieldErrors({});
   }, [defaultFrom, initial]);
 
   useEffect(() => {
@@ -358,6 +375,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
     }
     setIsSending(true);
     setError(null);
+    setFieldErrors({});
 
     try {
       const attachmentError = validateAttachments(attachmentFiles);
@@ -381,7 +399,9 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
 
       const parsed = sendEmailSchema.safeParse(payload);
       if (!parsed.success) {
-        setError('Please fix the highlighted fields.');
+        const nextFieldErrors = composeValidationErrors(parsed.error.flatten().fieldErrors);
+        setFieldErrors(nextFieldErrors);
+        setError(firstComposeError(nextFieldErrors));
         setIsSending(false);
         return;
       }
@@ -470,6 +490,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
         {tab === 'compose' ? (
           <div className="space-y-4">
             <SendAsPicker aliases={fromAddresses} value={from} onChange={setFrom} domainFallback={activeDomain?.name} />
+            {fieldErrors.from ? <p className="-mt-2 text-sm text-red-600">{fieldErrors.from}</p> : null}
 
             <Input
               label="To"
@@ -479,12 +500,13 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
               type="email"
               inputMode="email"
               autoCapitalize="none"
+              error={fieldErrors.to}
             />
 
             {showCcBcc ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Input label="Cc" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="optional" />
-                <Input label="Bcc" value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="optional" />
+                <Input label="Cc" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="optional" error={fieldErrors.cc} />
+                <Input label="Bcc" value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="optional" error={fieldErrors.bcc} />
               </div>
             ) : (
               <button
@@ -501,6 +523,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Subject"
+              error={fieldErrors.subject}
             />
 
             <AttachmentRows files={attachmentFiles} onRemove={removeAttachment} />
@@ -569,19 +592,25 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
         <DesktopFieldRow label="From">
           {fromAddresses.length <= 1 ? (
             <input
-              type="email"
+              type="text"
               inputMode="email"
               autoCapitalize="none"
               value={from || fromAddresses[0] || (activeDomain ? `support@${activeDomain.name}` : '')}
               onChange={(e) => setFrom(e.target.value)}
-              placeholder="support@example.com"
-              className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
+              placeholder="Your Name <support@example.com>"
+              className={clsx(
+                'w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none',
+                fieldErrors.from && 'text-red-700'
+              )}
             />
           ) : (
             <select
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink focus:outline-none"
+              className={clsx(
+                'w-full border-0 bg-transparent px-0 py-2 text-sm text-ink focus:outline-none',
+                fieldErrors.from && 'text-red-700'
+              )}
             >
               {fromAddresses.map((address) => (
                 <option key={address} value={address}>
@@ -590,6 +619,7 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
               ))}
             </select>
           )}
+          {fieldErrors.from ? <p className="text-sm text-red-600">{fieldErrors.from}</p> : null}
         </DesktopFieldRow>
 
         <DesktopFieldRow
@@ -613,8 +643,12 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
             type="email"
             inputMode="email"
             autoCapitalize="none"
-            className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
+            className={clsx(
+              'w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none',
+              fieldErrors.to && 'text-red-700'
+            )}
           />
+          {fieldErrors.to ? <p className="text-sm text-red-600">{fieldErrors.to}</p> : null}
         </DesktopFieldRow>
 
         {showCcBcc ? (
@@ -624,8 +658,12 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
                 value={cc}
                 onChange={(e) => setCc(e.target.value)}
                 placeholder="optional"
-                className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
+                className={clsx(
+                  'w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none',
+                  fieldErrors.cc && 'text-red-700'
+                )}
               />
+              {fieldErrors.cc ? <p className="text-sm text-red-600">{fieldErrors.cc}</p> : null}
             </DesktopFieldRow>
             <DesktopFieldRow
               label="Bcc"
@@ -645,8 +683,12 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
                 value={bcc}
                 onChange={(e) => setBcc(e.target.value)}
                 placeholder="optional"
-                className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
+                className={clsx(
+                  'w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none',
+                  fieldErrors.bcc && 'text-red-700'
+                )}
               />
+              {fieldErrors.bcc ? <p className="text-sm text-red-600">{fieldErrors.bcc}</p> : null}
             </DesktopFieldRow>
           </>
         ) : null}
@@ -656,8 +698,12 @@ export function ComposeForm({ initial, mode, onClose }: ComposeFormProps) {
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Subject"
-            className="w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
+            className={clsx(
+              'w-full border-0 bg-transparent px-0 py-2 text-sm text-ink placeholder:text-ink-subtle focus:outline-none',
+              fieldErrors.subject && 'text-red-700'
+            )}
           />
+          {fieldErrors.subject ? <p className="text-sm text-red-600">{fieldErrors.subject}</p> : null}
         </DesktopFieldRow>
 
         <div className={clsx('pt-3', !attachmentFiles.length && 'hidden')}>
