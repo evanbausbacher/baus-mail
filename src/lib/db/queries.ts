@@ -5,6 +5,7 @@ import type { Domain, CreateDomainInput, UpdateDomainInput } from "@/types/domai
 import type { Email, EmailSummary, EmailType } from "@/types/email";
 import type { MailFolder } from "@/types/folder";
 import { buildThreads } from "@/lib/threading/algorithm";
+import { normalizeSubject, THREAD_SUBJECT_PREFIX_PATTERN } from "@/lib/utils/email-helpers";
 
 type DomainRow = typeof domains.$inferSelect;
 type EmailRow = typeof emails.$inferSelect;
@@ -458,13 +459,6 @@ async function getEmailsByIds(ids: string[]): Promise<Email[]> {
   return ids.map((id) => byId.get(id)).filter((email): email is Email => Boolean(email));
 }
 
-function normalizeThreadSubject(value: string): string {
-  return value
-    .replace(/^(\s*(re|fw|fwd)\s*:\s*)+/i, "")
-    .trim()
-    .toLowerCase();
-}
-
 function extractAddress(value: string): string {
   const match = value.match(/<([^>]+)>/);
   return (match?.[1] ?? value).trim().toLowerCase();
@@ -486,13 +480,13 @@ function getThreadParticipantNeedles(email: Email): string[] {
 }
 
 function threadFallbackWhere(email: Email) {
-  const subject = normalizeThreadSubject(email.subject || "");
+  const subject = normalizeSubject(email.subject || "").toLowerCase();
   const participantNeedles = getThreadParticipantNeedles(email);
   const since = new Date(email.createdAt);
   since.setDate(since.getDate() - THREAD_FALLBACK_DAYS);
 
   const subjectClause = subject
-    ? sql`lower(regexp_replace(${emails.subject}, '^(\\s*(re|fw|fwd)\\s*:\\s*)+', '', 'i')) = ${subject}`
+    ? sql`lower(trim(regexp_replace(${emails.subject}, ${THREAD_SUBJECT_PREFIX_PATTERN}, '', 'i'))) = ${subject}`
     : sql`coalesce(nullif(trim(${emails.subject}), ''), '') = ''`;
 
   const participantClause = participantNeedles.length > 0

@@ -1,5 +1,5 @@
 import type { Email } from '@/types/email';
-import { parseEmailAddress, stripHtml } from '@/lib/utils/email-helpers';
+import { parseEmailAddress, stripHtml, stripReplyPrefixes } from '@/lib/utils/email-helpers';
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward';
 
@@ -51,7 +51,7 @@ export function buildDraftFromEmail(
   currentAddress?: string
 ): ComposeDraft {
   if (mode === 'reply' || mode === 'replyAll') {
-    const subject = prefixSubject('Re:', email.subject || '');
+    const subject = `Re: ${stripReplyPrefixes(email.subject || '')}`.trim();
     const inReplyTo = email.messageId ?? null;
     const references = uniqEmails([email.references ?? '', email.messageId ?? ''].join(' ').split(/\s+/g))
       .filter(Boolean)

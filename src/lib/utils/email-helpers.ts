@@ -150,14 +150,28 @@ function cleanQuotedText(value: string): string {
     .trim();
 }
 
+// Known localized reply markers, also recognized by clients such as Emacs Rmail:
+// https://github.com/emacs-mirror/emacs/blob/master/lisp/mail/rmail.el
+// Keep an explicit list so ordinary subject labels (e.g. "Order:") survive.
+const REPLY_PREFIXES = 're|r|rif|aw|antwort|antw|sv|vs|res|ref|réf\\.?|odp|ynt|vá|bls|atb|απ|σχετ|השב|رد|回复|回覆|答复';
+const SUBJECT_PREFIX_SUFFIX = String.raw`(\[[0-9]+\]|\([0-9]+\))?\s*[:：]\s*`;
+const REPLY_SUBJECT_PREFIX_PATTERN = `^(\\s*(${REPLY_PREFIXES})${SUBJECT_PREFIX_SUFFIX})+`;
+
+// Shared with Postgres thread lookup; use syntax supported by both regex engines.
+export const THREAD_SUBJECT_PREFIX_PATTERN = `^(\\s*(${REPLY_PREFIXES}|fw|fwd)${SUBJECT_PREFIX_SUFFIX})+`;
+const replySubjectPrefixes = new RegExp(REPLY_SUBJECT_PREFIX_PATTERN, 'i');
+const threadSubjectPrefixes = new RegExp(THREAD_SUBJECT_PREFIX_PATTERN, 'i');
+
+export function stripReplyPrefixes(subject: string): string {
+  return subject.replace(replySubjectPrefixes, '').trim();
+}
+
 export function normalizeSubject(subject: string): string {
-  return subject
-    .replace(/^(Re|Fwd|Fw):\s*/gi, '')
-    .trim();
+  return subject.replace(threadSubjectPrefixes, '').trim();
 }
 
 export function isReply(subject: string): boolean {
-  return /^Re:/i.test(subject);
+  return replySubjectPrefixes.test(subject);
 }
 
 export function isForward(subject: string): boolean {

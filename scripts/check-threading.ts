@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import type { Email } from '../src/types/email';
 import { buildThreads } from '../src/lib/threading/algorithm';
+import { buildDraftFromEmail } from '../src/lib/compose/draft';
+import { isReply, normalizeSubject } from '../src/lib/utils/email-helpers';
 
 function email(overrides: Partial<Email> & Pick<Email, 'id' | 'from' | 'to' | 'subject' | 'createdAt'>): Email {
   return {
@@ -97,4 +99,46 @@ assert.deepEqual(
 );
 assert.equal(fallbackThreads[0].latestEmail.id, 'unrelated', 'threads should still sort by latest activity');
 
-console.log('Threading checks passed');
+const topic = 'Need more workout imports?';
+const replySubjects = [
+  'Re:', 'R:', 'RIF:', 'AW:', 'Antwort:', 'Antw:', 'SV:', 'VS:', 'RES:',
+  'REF:', 'Réf.:', 'Odp:', 'YNT:', 'Vá:', 'BLS:', 'ATB:', 'ΑΠ:', 'ΣΧΕΤ:',
+  'השב:', 'رد:', '回复:', '回覆:', '答复:', '回复：', 'Re[2]:', 'Re(3):',
+  '  r : re: AW: ', 'R: Re: R: Re:',
+].map((prefix) => `${prefix} ${topic}`);
+
+for (const subject of replySubjects) {
+  assert.equal(isReply(subject), true, `should recognize reply prefix: ${subject}`);
+  assert.equal(normalizeSubject(subject), topic);
+  for (const mode of ['reply', 'replyAll'] as const) {
+    const draft = buildDraftFromEmail(mode, { ...fallbackRoot, subject });
+    assert.equal(draft.subject, `Re: ${topic}`, `should avoid accumulating reply prefixes: ${subject}`);
+    assert.equal(buildDraftFromEmail(mode, { ...fallbackRoot, subject: draft.subject! }).subject, draft.subject);
+  }
+}
+
+const localizedReplies = [topic, ...replySubjects].map((subject, index) => email({
+  ...fallbackRoot,
+  id: `localized-${index}`,
+  messageId: `<localized-${index}@example.com>`,
+  threadId: `<localized-${index}@example.com>`,
+  subject,
+  createdAt: new Date(Date.UTC(2026, 4, 2, 10, index)),
+}));
+const localizedThreads = buildThreads([...localizedReplies, { ...unrelated, subject: `AW: ${topic}` }]);
+assert.equal(localizedThreads.length, 2, 'localized replies should group without merging different participants');
+assert.equal(localizedThreads.find((thread) => thread.emails.some((entry) => entry.id === 'localized-0'))?.emails.length, localizedReplies.length);
+
+for (const subject of ['Order: 123', 'Reactor: update', 'R&D: plans', '[List] Re: update', 'Status: Re: update']) {
+  assert.equal(isReply(subject), false);
+  assert.equal(normalizeSubject(subject), subject, 'ordinary subject text must be preserved');
+  assert.equal(buildDraftFromEmail('reply', { ...fallbackRoot, subject }).subject, `Re: ${subject}`);
+}
+
+assert.equal(normalizeSubject(` Fwd: R: Re: FW: ${topic} `), topic);
+assert.equal(isReply(`Fwd: ${topic}`), false);
+assert.equal(buildDraftFromEmail('reply', { ...fallbackRoot, subject: `R: Fwd: ${topic}` }).subject, `Re: Fwd: ${topic}`);
+assert.equal(buildDraftFromEmail('forward', { ...fallbackRoot, subject: `Fwd: ${topic}` }).subject, `Fwd: ${topic}`);
+assert.equal(buildDraftFromEmail('reply', { ...fallbackRoot, subject: '' }).subject, 'Re:');
+
+console.log('Threading and reply subject checks passed');
