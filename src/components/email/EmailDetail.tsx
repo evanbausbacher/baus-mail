@@ -12,7 +12,7 @@ import { ActionSheet, ActionSheetButton } from '@/components/ui/ActionSheet';
 import { useEmails } from '@/components/providers/EmailProvider';
 import { useEmailActions } from '@/hooks/useEmailActions';
 import { useEmailThread } from '@/hooks/useEmailThread';
-import { Archive, ChevronLeft, Ellipsis, Forward as ForwardIcon, Mail, MailOpen, Reply as ReplyIcon, Star } from 'lucide-react';
+import { Archive, ChevronLeft, Copy, Ellipsis, Forward as ForwardIcon, Mail, MailOpen, Reply as ReplyIcon, Star } from 'lucide-react';
 import clsx from 'clsx';
 
 const DETAIL_SWIPE_TRIGGER = 76;
@@ -183,6 +183,41 @@ function ResponsiveEmailHtml({ html }: { html: string }) {
         style={isMobile ? { transform: `scale(${scale})`, transformOrigin: 'top left' } : undefined}
         dangerouslySetInnerHTML={{ __html: renderedHtml }}
       />
+    </div>
+  );
+}
+
+function CopyAddressButton({ address }: { address: string }) {
+  const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timeout = window.setTimeout(() => setFeedback(''), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
+
+  async function copyAddress() {
+    try {
+      await navigator.clipboard.writeText(address);
+      setFeedback('Copied');
+    } catch {
+      setFeedback('Copy failed');
+    }
+  }
+
+  return (
+    <div className="hidden shrink-0 items-center lg:flex">
+      <button
+        type="button"
+        aria-label="Copy sender email address"
+        title="Copy sender email address"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={copyAddress}
+        className="inline-flex h-6 w-6 items-center justify-center rounded text-ink-muted hover:bg-line/40 hover:text-ink"
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
+      <span role="status" className="text-xs text-ink-muted">{feedback}</span>
     </div>
   );
 }
@@ -448,11 +483,14 @@ export function EmailDetail({ email }: { email: Email }) {
               {(fromParsed.name || fromParsed.address || '?').slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-ink truncate">
-                {formatEmailAddress(email.from)}
-              </div>
-              <div className="text-xs text-ink-subtle truncate">
-                {fromParsed.name ? fromParsed.address : ''}
+              {fromParsed.name && (
+                <div className="truncate text-sm font-medium text-ink">{fromParsed.name}</div>
+              )}
+              <div className="flex items-center gap-1">
+                <span className={clsx('truncate', fromParsed.name ? 'text-xs text-ink-subtle' : 'text-sm font-medium text-ink')}>
+                  {fromParsed.address}
+                </span>
+                {fromParsed.address && <CopyAddressButton key={fromParsed.address} address={fromParsed.address} />}
               </div>
               <div className="text-xs text-ink-subtle mt-1">
                 to {email.to?.length ? email.to.map(formatEmailAddress).join(', ') : '(none)'}
